@@ -1,4 +1,4 @@
-<img src="https://assets.withone.ai/banners/mcp.png?v=2" alt="One MCP — Connect your agents to every app through a single MCP." style="border-radius: 5px;">
+<img src="https://assets.withone.ai/banners/mcp.png?v=3" alt="One MCP — Connect your agents to every app through a single MCP." style="border-radius: 5px;">
 
 <h3 align="center">One MCP Server</h3>
 
