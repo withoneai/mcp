@@ -69,26 +69,20 @@ The server exposes four MCP tools:
 
 Prefer not to run anything locally? One hosts a remote MCP server at **`https://mcp.withone.ai/mcp`**. Point any MCP client that supports remote (HTTP) servers at that URL and authenticate with One via OAuth. There's no `npm install` and no `ONE_SECRET` to manage. You approve access in One's consent screen, where you can scope exactly which connections, actions, and permission levels the agent gets. Those choices are surfaced back to the agent through each connection's `access` field, so it knows what it can run without searching.
 
-### Clients with native remote support
-
-Add `https://mcp.withone.ai/mcp` as a remote (custom) MCP server and complete the OAuth prompt.
-
-### Clients without native remote support (Claude Desktop, etc.)
-
-Bridge to the remote server with [`mcp-remote`](https://www.npmjs.com/package/mcp-remote):
+Add it to your client's MCP configuration. The endpoint speaks the Streamable HTTP transport:
 
 ```json
 {
   "mcpServers": {
     "one": {
-      "command": "npx",
-      "args": ["mcp-remote", "https://mcp.withone.ai/mcp"]
+      "type": "http",
+      "url": "https://mcp.withone.ai/mcp"
     }
   }
 }
 ```
 
-The first run opens a browser to authenticate and authorize. After that, the same four tools are available.
+Some clients omit `type` and take the URL alone; UI-based clients (custom connectors) just need the URL itself. On first connect, your client opens a browser to authenticate and authorize with One. After that, the same four tools are available.
 
 ## Manual Installation
 
