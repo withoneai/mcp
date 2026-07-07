@@ -17,7 +17,8 @@ import {
   GetOneActionKnowledgeResponse,
   ExecuteOneActionArgs,
   RequestConfig,
-  ExecutePassthroughResponse
+  ExecutePassthroughResponse,
+  ResolvedAllowedAction
 } from './types.js';
 import { fetchPaginatedData, replacePathVariables } from './helpers.js';
 
@@ -43,6 +44,7 @@ export class OneClient {
   private connections: Connection[] = [];
   private connectors: ConnectionDefinition[] = [];
   private isInitialized = false;
+  private allowedActionsCache: ResolvedAllowedAction[] | null = null;
 
   constructor(options: OneClientOptions);
   constructor(secret: string, baseUrl?: string);
@@ -271,6 +273,48 @@ export class OneClient {
       console.error("Error fetching action knowledge:", error);
       throw error;
     }
+  }
+
+  /**
+   * Resolves an allowlist of action ids to their metadata (title, method, and
+   * owning platform), so `list_one_integrations` can report each connection's
+   * enumerated actions. `"*"` (unrestricted) resolves to an empty list — there
+   * is no allowlist to enumerate. Ids that fail to resolve or carry no platform
+   * are skipped rather than failing the whole call. The result is cached: the
+   * allowlist is fixed for the process lifetime.
+   * @param actionIds - The configured `ONE_ACTION_IDS` allowlist
+   * @returns Resolved metadata for every enumerable allowed action
+   */
+  async resolveAllowedActions(actionIds: string[]): Promise<ResolvedAllowedAction[]> {
+    if (actionIds.includes("*")) {
+      return [];
+    }
+    if (this.allowedActionsCache) {
+      return this.allowedActionsCache;
+    }
+
+    const resolved = await Promise.all(
+      actionIds.map(async (actionId): Promise<ResolvedAllowedAction | null> => {
+        try {
+          const action = await this.getActionDetails(actionId);
+          if (!action.connectionPlatform) {
+            return null;
+          }
+          return {
+            actionId,
+            title: action.title,
+            method: action.method,
+            platform: action.connectionPlatform
+          };
+        } catch (error) {
+          console.error(`Failed to resolve allowed action ${actionId}:`, error);
+          return null;
+        }
+      })
+    );
+
+    this.allowedActionsCache = resolved.filter((a): a is ResolvedAllowedAction => a !== null);
+    return this.allowedActionsCache;
   }
 
   /**

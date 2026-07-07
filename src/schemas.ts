@@ -50,12 +50,31 @@ export const executeOneActionInputSchema = {
 /**
  * Output schemas for list_one_integrations tool
  */
+const connectionAccessSchema = z.union([
+    z.object({
+        policy: z.literal("full")
+    }),
+    z.object({
+        policy: z.literal("methods"),
+        methods: z.array(z.string())
+    }),
+    z.object({
+        policy: z.literal("actions"),
+        actions: z.array(z.object({
+            actionId: z.string(),
+            title: z.string(),
+            method: z.string()
+        }))
+    })
+]).describe("What the access config lets you run on this connection: `full`, an allowed `methods` set, or a specific `actions` list. When `actions`, those are exactly what may run, so no search is needed.");
+
 export const listOneIntegrationsOutputSchema = {
     connections: z.array(z.object({
         platform: z.string(),
         key: z.string(),
-        tags: z.array(z.string())
-    })).describe("Array of user's active connections"),
+        tags: z.array(z.string()),
+        access: connectionAccessSchema
+    })).describe("Array of user's active connections, each with the access the current config confers"),
     availablePlatforms: z.array(z.object({
         platform: z.string(),
         name: z.string(),
@@ -89,7 +108,7 @@ export const searchOnePlatformActionsOutputSchema = {
  */
 export const listOneIntegrationsToolConfig = {
     title: "List One Integrations",
-    description: "List all available One integrations and platforms. ALWAYS call this tool first in any workflow to discover what platforms and connections are available. This returns the connections that the user has and all available One platforms in kebab-case format (e.g., 'ship-station', 'shopify') which you'll need for subsequent tool calls.",
+    description: "List all available One integrations and platforms. ALWAYS call this tool first in any workflow to discover what platforms and connections are available. This returns the connections that the user has and all available One platforms in kebab-case format (e.g., 'ship-station', 'shopify') which you'll need for subsequent tool calls. Each connection carries an `access` field describing what you may run on it: `full`, a set of allowed HTTP `methods`, or a specific list of `actions` (each with `actionId`, `title`, `method`). When a connection is action-scoped, its `actions` are exactly what may run, so you need not search.",
     inputSchema: listOneIntegrationsInputSchema,
     outputSchema: listOneIntegrationsOutputSchema
 };

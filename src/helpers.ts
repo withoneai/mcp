@@ -7,7 +7,7 @@
  * @author One
  */
 
-import { PaginatedResponse, PermissionLevel } from './types.js';
+import { PaginatedResponse, PermissionLevel, ConnectionAccess, ResolvedAllowedAction } from './types.js';
 import axios, { AxiosResponse } from 'axios';
 
 /**
@@ -186,4 +186,34 @@ export function isActionAllowed(
   allowedActionIds: string[]
 ): boolean {
   return allowedActionIds.includes("*") || allowedActionIds.includes(actionId);
+}
+
+/**
+ * What the current access config lets the agent run on a connection of
+ * `platform`, so `list_one_integrations` can surface it without a search.
+ * Mirrors the One core `resolve_connection_access` precedence:
+ * an action allowlist wins (report the enumerated actions on this platform),
+ * else a non-`admin` permission level reports its method set, else full.
+ * `resolvedAllowed` is the allowlisted actions already resolved to their
+ * metadata and method-filtered by the permission level.
+ */
+export function computeConnectionAccess(
+  platform: string,
+  permissions: PermissionLevel,
+  allowedActionIds: string[],
+  resolvedAllowed: ResolvedAllowedAction[]
+): ConnectionAccess {
+  if (!allowedActionIds.includes("*")) {
+    const actions = resolvedAllowed
+      .filter(a => a.platform === platform)
+      .map(({ actionId, title, method }) => ({ actionId, title, method }));
+    return { policy: "actions", actions };
+  }
+
+  const methods = PERMISSION_METHODS[permissions];
+  if (methods !== null) {
+    return { policy: "methods", methods };
+  }
+
+  return { policy: "full" };
 }

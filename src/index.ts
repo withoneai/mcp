@@ -21,6 +21,7 @@ import {
   filterByPermissions,
   isMethodAllowed,
   isActionAllowed,
+  computeConnectionAccess,
 } from './helpers.js';
 import {
   listOneIntegrationsToolConfig,
@@ -165,11 +166,18 @@ async function handleGetIntegrations(args: ListOneIntegrationsArgs) {
       activePlatforms = activePlatforms.filter(def => connectedPlatforms.has(def.platform));
     }
 
+    // Resolve the action allowlist to per-platform metadata (method-filtered by
+    // the permission level) once, so each connection can report the exact
+    // actions it may run. Only needed when an action allowlist is set.
+    const resolvedAllowed = (await oneClient.resolveAllowedActions(ONE_ACTION_IDS))
+      .filter(action => isMethodAllowed(action.method, ONE_PERMISSIONS));
+
     const structuredResponse: ListIntegrationsResponse = {
       connections: activeConnections.map(conn => ({
         platform: conn.platform,
         key: conn.key,
-        tags: conn.tags ?? []
+        tags: conn.tags ?? [],
+        access: computeConnectionAccess(conn.platform, ONE_PERMISSIONS, ONE_ACTION_IDS, resolvedAllowed)
       })),
       availablePlatforms: activePlatforms.map(def => ({
         platform: def.platform,

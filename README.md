@@ -20,7 +20,7 @@
   <a href="https://npmjs.com/package/@withone/mcp"><img src="https://img.shields.io/npm/v/%40withone%2Fmcp" alt="npm version"></a>
 </p>
 
-Connect your AI agents to 250+ apps through a single [MCP](https://modelcontextprotocol.io) server. Search for actions, read documentation, and execute API calls across platforms, without having to manage OAuth tokens or API keys.
+Connect your AI agents to 500+ apps through a single [MCP](https://modelcontextprotocol.io) server. Search for actions, read documentation, and execute API calls across platforms, without having to manage OAuth tokens or API keys.
 
 ```bash
 npm install -g @withone/cli
@@ -31,7 +31,7 @@ That's it. The [One CLI](https://www.npmjs.com/package/@withone/cli) will prompt
 
 ## Capabilities
 
-- **250+ platforms.** Gmail, Slack, Shopify, HubSpot, Stripe, Linear, QuickBooks, and [more](https://app.withone.ai/tools).
+- **500+ platforms.** Gmail, Slack, Shopify, HubSpot, Stripe, Linear, QuickBooks, and [more](https://app.withone.ai/tools).
 - **Natural language execution.** "read my last gmail email", "send a message to #general on Slack"
 - **Code generation.** "build a form to send emails using Gmail", "create a dashboard that lists my Linear projects"
 - **No tool bloat.** Only 4 tools exposed regardless of how many platforms or actions you connect. Actions are search-based, so your agent's context window stays clean.
@@ -60,10 +60,35 @@ The server exposes four MCP tools:
 
 | Tool | Description |
 |------|-------------|
-| `list_one_integrations` | List available platforms and active connections |
+| `list_one_integrations` | List available platforms and active connections, each with the `access` it confers (full, methods, or specific actions) |
 | `search_one_platform_actions` | Search for actions on a specific platform |
 | `get_one_action_knowledge` | Get detailed documentation for an action |
 | `execute_one_action` | Execute an API action on a connected platform |
+
+## Remote MCP Server
+
+Prefer not to run anything locally? One hosts a remote MCP server at **`https://mcp.withone.ai/mcp`**. Point any MCP client that supports remote (HTTP) servers at that URL and authenticate with One via OAuth. There's no `npm install` and no `ONE_SECRET` to manage. You approve access in One's consent screen, where you can scope exactly which connections, actions, and permission levels the agent gets. Those choices are surfaced back to the agent through each connection's `access` field, so it knows what it can run without searching.
+
+### Clients with native remote support
+
+Add `https://mcp.withone.ai/mcp` as a remote (custom) MCP server and complete the OAuth prompt.
+
+### Clients without native remote support (Claude Desktop, etc.)
+
+Bridge to the remote server with [`mcp-remote`](https://www.npmjs.com/package/mcp-remote):
+
+```json
+{
+  "mcpServers": {
+    "one": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://mcp.withone.ai/mcp"]
+    }
+  }
+}
+```
+
+The first run opens a browser to authenticate and authorize. After that, the same four tools are available.
 
 ## Manual Installation
 
@@ -115,6 +140,14 @@ ONE_KNOWLEDGE_AGENT=true
 
 All defaults preserve current behavior. If no access control env vars are set, the server starts with full access and all tools available.
 
+Whatever you configure here is surfaced back to the agent: `list_one_integrations` stamps each connection with an `access` field so the agent knows up front what it can run there, without spending a turn searching. It is one of:
+
+| `access` | When |
+|---|---|
+| `{ "policy": "full" }` | No action allowlist and `ONE_PERMISSIONS=admin` — every action is runnable. |
+| `{ "policy": "methods", "methods": ["GET", ...] }` | No action allowlist, but `ONE_PERMISSIONS` is `read`/`write` — only these HTTP methods are runnable. |
+| `{ "policy": "actions", "actions": [{ "actionId", "title", "method" }] }` | `ONE_ACTION_IDS` is set — exactly these actions (the ones on that connection's platform) are runnable, so no search is needed. |
+
 ## Manual Configuration
 
 If you used `one init`, the configuration below is already done for you. These examples are for reference or manual setups.
@@ -145,10 +178,6 @@ Add the following to your MCP config:
   }
 }
 ```
-
-### Remote MCP Server
-
-The remote MCP server is available at [https://mcp.withone.ai](https://mcp.withone.ai).
 
 ### Docker
 
