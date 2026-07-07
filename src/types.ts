@@ -69,6 +69,38 @@ export interface ActionDetails {
   knowledge?: string;
   path: string;
   method: string;
+  connectionPlatform?: string;
+}
+
+/**
+ * A single action the current access config permits on a connection, resolved
+ * from an allowed action id. Mirrors the One core `GrantedAction` shape.
+ */
+export interface GrantedAction {
+  actionId: string;
+  title: string;
+  method: string;
+}
+
+/**
+ * What the current access config lets the agent run on one connection, so
+ * `list_one_integrations` can answer "what can I do here" without a search.
+ * Mirrors the One core `ConnectionAccess` shape (`policy` discriminant):
+ * - `full`: every action on the connection.
+ * - `methods`: only actions whose HTTP method is in the set.
+ * - `actions`: only these specific actions.
+ */
+export type ConnectionAccess =
+  | { policy: "full" }
+  | { policy: "methods"; methods: string[] }
+  | { policy: "actions"; actions: GrantedAction[] };
+
+/**
+ * An allowed action id resolved to its metadata, including the platform it
+ * belongs to so it can be bucketed onto the matching connection.
+ */
+export interface ResolvedAllowedAction extends GrantedAction {
+  platform: string;
 }
 
 /**
@@ -165,6 +197,7 @@ export interface ListIntegrationsResponse {
     platform: string;
     key: string;
     tags: string[];
+    access: ConnectionAccess;
   }>;
   availablePlatforms: Array<{
     platform: string;
