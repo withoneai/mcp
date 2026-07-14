@@ -130,7 +130,7 @@ ONE_KNOWLEDGE_AGENT=true
 | `ONE_PERMISSIONS` | `read` \| `write` \| `admin` | `admin` | Filter actions by HTTP method. `read` = GET only, `write` = GET/POST/PUT/PATCH, `admin` = all methods |
 | `ONE_CONNECTION_KEYS` | `*` or comma-separated keys | `*` | Restrict visible connections and platforms to specific connection keys |
 | `ONE_ACTION_IDS` | `*` or comma-separated IDs | `*` | Restrict visible and executable actions to specific action IDs |
-| `ONE_KNOWLEDGE_AGENT` | `true` \| `false` | `false` | Remove the `execute_one_action` tool entirely, forcing knowledge-only mode |
+| `ONE_KNOWLEDGE_AGENT` | `true` \| `false` | `false` | Remove the `execute_one_action` tool entirely, forcing knowledge-only mode. `get_one_action_knowledge` responses additionally include an Integration Code Guide (passthrough URL, `x-one-*` headers, `ONE_SECRET` / `ONE_{PLATFORM}_CONNECTION_KEY` env vars, backend-only placement) for writing application code |
 
 All defaults preserve current behavior. If no access control env vars are set, the server starts with full access and all tools available.
 

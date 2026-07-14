@@ -18,6 +18,7 @@ import {
 import { OneClient } from './client.js';
 import {
   buildActionKnowledgeWithGuidance,
+  buildKnowledgeModeGuidance,
   filterByPermissions,
   isMethodAllowed,
   isActionAllowed,
@@ -303,6 +304,24 @@ async function handleGetActionKnowledge(args: GetOneActionKnowledgeArgs) {
           `Platform "${args.platform}" has no allowed connections`
         );
       }
+    }
+
+    if (ONE_KNOWLEDGE_AGENT) {
+      const details = await oneClient.getActionDetails(actionId);
+      const knowledgeWithGuide = buildKnowledgeModeGuidance(
+        details,
+        args.platform,
+        oneClient.getBaseUrl()
+      );
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: knowledgeWithGuide,
+          },
+        ],
+      };
     }
 
     const { knowledge, method } = await oneClient.getActionKnowledge(actionId);
