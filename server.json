@@ -1,0 +1,85 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "ai.withone/mcp",
+  "title": "One",
+  "description": "Search, document and execute authenticated API calls across 500+ apps via one MCP server",
+  "version": "1.2.1",
+  "websiteUrl": "https://withone.ai",
+  "repository": {
+    "url": "https://github.com/withoneai/mcp",
+    "source": "github",
+    "id": "1187553569"
+  },
+  "icons": [
+    {
+      "src": "https://www.withone.ai/icons/apple-touch-icon.png",
+      "mimeType": "image/png",
+      "sizes": ["180x180"]
+    },
+    {
+      "src": "https://www.withone.ai/icons/favicon.svg",
+      "mimeType": "image/svg+xml",
+      "sizes": ["any"]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.withone.ai/mcp"
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@withone/mcp",
+      "version": "1.2.1",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "ONE_SECRET",
+          "description": "One API key from https://app.withone.ai/settings/api-keys",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "ONE_PERMISSIONS",
+          "description": "Restrict actions by HTTP method: read (GET), write (GET/POST/PUT/PATCH) or admin (all)",
+          "isRequired": false,
+          "default": "admin"
+        },
+        {
+          "name": "ONE_CONNECTION_KEYS",
+          "description": "Comma-separated connection keys the agent may see, or * for all",
+          "isRequired": false,
+          "default": "*"
+        },
+        {
+          "name": "ONE_ACTION_IDS",
+          "description": "Comma-separated action IDs the agent may see and run, or * for all",
+          "isRequired": false,
+          "default": "*"
+        },
+        {
+          "name": "ONE_KNOWLEDGE_AGENT",
+          "description": "Set true to drop execute_one_action and run in knowledge-only mode",
+          "isRequired": false,
+          "default": "false"
+        },
+        {
+          "name": "ONE_IDENTITY",
+          "description": "Scope connections to a single user, team, organization or project identifier",
+          "isRequired": false
+        },
+        {
+          "name": "ONE_IDENTITY_TYPE",
+          "description": "Type of ONE_IDENTITY: user, team, organization or project",
+          "isRequired": false
+        }
+      ]
+    }
+  ]
+}
