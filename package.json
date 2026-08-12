@@ -1,6 +1,6 @@
 {
   "name": "@withone/mcp",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "A Model Context Protocol Server for One",
   "type": "module",
   "bin": {
@@ -38,7 +38,7 @@
     "email": "support@withone.ai",
     "url": "https://withone.ai"
   },
-  "license": "GPL-3.0",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/withoneai/mcp"
