@@ -84,6 +84,12 @@ Add it to your client's MCP configuration. The endpoint speaks the Streamable HT
 
 Some clients omit `type` and take the URL alone; UI-based clients (custom connectors) just need the URL itself. On first connect, your client opens a browser to authenticate and authorize with One. After that, the same four tools are available.
 
+One-click install:
+
+[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_One-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect/mcp/install?name=one&config=%7B%22type%22%3A%20%22http%22%2C%20%22url%22%3A%20%22https%3A%2F%2Fmcp.withone.ai%2Fmcp%22%7D)
+[![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_One-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=one&config=%7B%22type%22%3A%20%22http%22%2C%20%22url%22%3A%20%22https%3A%2F%2Fmcp.withone.ai%2Fmcp%22%7D)
+[![Add to Cursor](https://img.shields.io/badge/Cursor-Add_One-000000?style=flat-square)](https://cursor.com/en/install-mcp?name=one&config=eyJ1cmwiOiAiaHR0cHM6Ly9tY3Aud2l0aG9uZS5haS9tY3AifQ==)
+
 ## Manual Installation
 
 If you prefer to configure the server manually instead of using `one init`, install the package directly:
