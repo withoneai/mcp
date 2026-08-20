@@ -20,7 +20,7 @@
   <a href="https://npmjs.com/package/@withone/mcp"><img src="https://img.shields.io/npm/v/%40withone%2Fmcp" alt="npm version"></a>
 </p>
 
-Connect your AI agents to 500+ apps through a single [MCP](https://modelcontextprotocol.io) server. Search for actions, read documentation, and execute API calls across platforms, without having to manage OAuth tokens or API keys.
+Connect your AI agents to 700+ apps through a single [MCP](https://modelcontextprotocol.io) server. Search for actions, read documentation, and execute API calls across platforms, without having to manage OAuth tokens or API keys.
 
 ```bash
 npm install -g @withone/cli
@@ -31,7 +31,7 @@ That's it. The [One CLI](https://www.npmjs.com/package/@withone/cli) will prompt
 
 ## Capabilities
 
-- **500+ platforms.** Gmail, Slack, Shopify, HubSpot, Stripe, Linear, QuickBooks, and [more](https://app.withone.ai/tools).
+- **700+ platforms.** Gmail, Slack, Shopify, HubSpot, Stripe, Linear, QuickBooks, and [more](https://app.withone.ai/tools).
 - **Natural language execution.** "read my last gmail email", "send a message to #general on Slack"
 - **Code generation.** "build a form to send emails using Gmail", "create a dashboard that lists my Linear projects"
 - **No tool bloat.** Only 4 tools exposed regardless of how many platforms or actions you connect. Actions are search-based, so your agent's context window stays clean.

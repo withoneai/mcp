@@ -1,6 +1,6 @@
 {
   "name": "@withone/mcp",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "A Model Context Protocol Server for One",
   "type": "module",
   "bin": {
