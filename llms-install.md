@@ -58,11 +58,12 @@ Optional environment variables for access control (`ONE_PERMISSIONS`, `ONE_CONNE
 
 ## Verify the installation
 
-Call `list_one_integrations`. A successful setup returns JSON with three top-level keys:
+Call `list_one_integrations`. A successful setup returns JSON containing a `connections` array, where each entry has a `platform`, a `key`, and the `access` it grants. Treat the presence of `connections` as success.
 
-- `connections`: the user's connected accounts, each with a `platform`, a `key`, and the `access` it grants
-- `availablePlatforms`: the full catalog the agent can connect to
-- `summary`: `{ "connectedCount": <n>, "availableCount": <n> }`
+The rest of the payload differs slightly between the two options, so do not key your success check on anything else:
+
+- Remote (Option A): `connections` plus `connectedCount`.
+- Local (Option B): `connections` plus `availablePlatforms` and `summary` (`{ "connectedCount": <n>, "availableCount": <n> }`).
 
 An empty `connections` list is still a successful install: it means the user has not connected any apps yet. In that case, tell the user to connect apps at https://app.withone.ai (or approve them on the OAuth consent screen for the remote server).
 
