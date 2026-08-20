@@ -58,7 +58,15 @@ Optional environment variables for access control (`ONE_PERMISSIONS`, `ONE_CONNE
 
 ## Verify the installation
 
-Call `list_one_integrations`. A successful setup returns JSON with an `activeConnections` list and available platforms. An empty connections list is still a successful install: it means the user has not connected any apps yet. In that case, tell the user to connect apps at https://app.withone.ai (or approve them on the OAuth consent screen for the remote server).
+Call `list_one_integrations`. A successful setup returns JSON with three top-level keys:
+
+- `connections`: the user's connected accounts, each with a `platform`, a `key`, and the `access` it grants
+- `availablePlatforms`: the full catalog the agent can connect to
+- `summary`: `{ "connectedCount": <n>, "availableCount": <n> }`
+
+An empty `connections` list is still a successful install: it means the user has not connected any apps yet. In that case, tell the user to connect apps at https://app.withone.ai (or approve them on the OAuth consent screen for the remote server).
+
+Note for clients that load MCP config at startup (Cline included): the server is not callable until the client is restarted or the MCP servers are reloaded. Tell the user to restart rather than reporting a failure.
 
 ## Troubleshooting
 
