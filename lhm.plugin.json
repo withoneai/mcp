@@ -1,0 +1,393 @@
+{
+  "identifier": "withoneai-mcp",
+  "name": "One",
+  "version": "1.2.4",
+  "description": "Search, document and execute authenticated API calls across 700+ apps via one MCP server",
+  "summary": "Connect your agent to 700+ apps through one MCP server: four tools, real API documentation, OAuth sign-in.",
+  "author": "withoneai",
+  "authorUrl": "https://github.com/withoneai",
+  "homepage": "https://www.withone.ai/docs/mcp",
+  "icon": "https://assets.withone.ai/logos/one-logo.png",
+  "category": "tools",
+  "tags": [
+    "integrations",
+    "automation",
+    "api",
+    "oauth",
+    "gmail",
+    "slack",
+    "stripe",
+    "hubspot",
+    "notion",
+    "linear"
+  ],
+  "cloudEndpoint": "https://mcp.withone.ai/mcp",
+  "tools": [
+    {
+      "name": "list_one_integrations",
+      "title": "List One Integrations",
+      "description": "List all available One integrations and platforms. ALWAYS call this tool first in any workflow to discover what platforms and connections are available. This returns the connections that the user has and all available One platforms in kebab-case format (e.g., 'ship-station', 'shopify') which you'll need for subsequent tool calls. Each connection carries an `access` field describing what you may run on it: `full`, a set of allowed HTTP `methods`, or a specific list of `actions` (each with `actionId`, `title`, `method`). When a connection is action-scoped, its `actions` are exactly what may run, so you need not search.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "connections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "platform": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "access": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "policy": {
+                          "type": "string",
+                          "const": "full"
+                        }
+                      },
+                      "required": [
+                        "policy"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "policy": {
+                          "type": "string",
+                          "const": "methods"
+                        },
+                        "methods": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "policy",
+                        "methods"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "policy": {
+                          "type": "string",
+                          "const": "actions"
+                        },
+                        "actions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "actionId": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "method": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "actionId",
+                              "title",
+                              "method"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "policy",
+                        "actions"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ],
+                  "description": "What the access config lets you run on this connection: `full`, an allowed `methods` set, or a specific `actions` list. When `actions`, those are exactly what may run, so no search is needed."
+                }
+              },
+              "required": [
+                "platform",
+                "key",
+                "tags",
+                "access"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Array of user's active connections, each with the access the current config confers"
+          },
+          "availablePlatforms": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "platform": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "platform",
+                "name",
+                "category"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Array of available platforms that can be connected"
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "connectedCount": {
+                "type": "number"
+              },
+              "availableCount": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "connectedCount",
+              "availableCount"
+            ],
+            "additionalProperties": false,
+            "description": "Summary statistics of connections and available platforms"
+          }
+        },
+        "required": [
+          "connections",
+          "availablePlatforms",
+          "summary"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "search_one_platform_actions",
+      "title": "Search Platform Actions",
+      "description": "Search for relevant actions on a specific platform using a query. Call this after list_one_integrations to find actions that match your intent. Returns the top 5 most relevant actions based on your search query. Use the exact kebab-case platform name from the integrations list.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string",
+            "description": "The platform name to search actions for (e.g., 'ship-station', 'shopify'). This is the kebab-case version of the platform name that comes from the list_one_integrations tool AVAILABLE PLATFORMS section."
+          },
+          "query": {
+            "type": "string",
+            "description": "The search query to find relevant actions (e.g., 'search contacts', 'create customer', 'send email'). Be specific about what you want to do."
+          },
+          "agentType": {
+            "type": "string",
+            "enum": [
+              "execute",
+              "knowledge"
+            ],
+            "description": "The type of agent context: 'execute' if the user wants to execute an action, 'knowledge' if they want to get information or write code. Defaults to 'knowledge' if not specified."
+          }
+        },
+        "required": [
+          "platform",
+          "query"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "actionId": {
+                  "type": "string",
+                  "description": "Unique identifier for the action"
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Human-readable action name"
+                },
+                "method": {
+                  "type": "string",
+                  "description": "HTTP method (GET, POST, etc.)"
+                },
+                "path": {
+                  "type": "string",
+                  "description": "API endpoint path"
+                }
+              },
+              "required": [
+                "actionId",
+                "title",
+                "method",
+                "path"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Array of matching actions (max 5)"
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "platform": {
+                "type": "string",
+                "description": "Platform that was searched"
+              },
+              "query": {
+                "type": "string",
+                "description": "Search query used"
+              },
+              "count": {
+                "type": "number",
+                "description": "Number of results returned"
+              }
+            },
+            "required": [
+              "platform",
+              "query",
+              "count"
+            ],
+            "additionalProperties": false,
+            "description": "Metadata about the search results"
+          }
+        },
+        "required": [
+          "actions",
+          "metadata"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "get_one_action_knowledge",
+      "title": "Get Action Knowledge",
+      "description": "Get comprehensive documentation for a specific action including parameters, requirements, and usage examples. MANDATORY: You MUST call this tool before execute_one_action to understand the action's requirements, parameter structure, caveats, and proper usage. This loads the action documentation into context and is required for successful execution.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "actionId": {
+            "type": "string",
+            "description": "The action ID to get knowledge for (from the actions list returned by search_one_platform_actions). REQUIRED: This tool must be called before execute_one_action to load the action's documentation into context."
+          },
+          "platform": {
+            "type": "string",
+            "description": "The platform name to get knowledge for (e.g., 'ship-station', 'shopify'). This is the kebab-case version of the platform name that comes from the list_one_integrations tool AVAILABLE PLATFORMS section."
+          }
+        },
+        "required": [
+          "actionId",
+          "platform"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "execute_one_action",
+      "title": "Execute One Action",
+      "description": "Execute a One action to perform actual operations on third-party platforms. CRITICAL: Only call this when the user's intent is to EXECUTE an action (e.g., 'read my last Gmail email', 'fetch 5 contacts from HubSpot', 'create a task in Asana'). DO NOT call this when the user wants to BUILD or CREATE code/forms/applications - in those cases, stop after get_one_action_knowledge and provide implementation guidance instead. REQUIRED WORKFLOW: Must call get_one_action_knowledge first. If uncertain about execution intent or parameters, ask for confirmation before proceeding.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string",
+            "description": "Platform name"
+          },
+          "actionId": {
+            "type": "string",
+            "description": "Action ID from search_one_platform_actions"
+          },
+          "connectionKey": {
+            "type": "string",
+            "description": "Key of the connection to use"
+          },
+          "data": {
+            "description": "Request data (for POST, PUT, etc.)"
+          },
+          "pathVariables": {
+            "type": "object",
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ]
+            },
+            "description": "Variables to replace in the path"
+          },
+          "queryParams": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "Query parameters"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Additional headers"
+          },
+          "isFormData": {
+            "type": "boolean",
+            "description": "Whether to send data as multipart/form-data"
+          },
+          "isFormUrlEncoded": {
+            "type": "boolean",
+            "description": "Whether to send data as application/x-www-form-urlencoded"
+          }
+        },
+        "required": [
+          "platform",
+          "actionId",
+          "connectionKey"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    }
+  ],
+  "resources": [],
+  "prompts": []
+}
