@@ -89,6 +89,9 @@ One-click install:
 [![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_One-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect/mcp/install?name=one&config=%7B%22type%22%3A%20%22http%22%2C%20%22url%22%3A%20%22https%3A%2F%2Fmcp.withone.ai%2Fmcp%22%7D)
 [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_One-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=one&config=%7B%22type%22%3A%20%22http%22%2C%20%22url%22%3A%20%22https%3A%2F%2Fmcp.withone.ai%2Fmcp%22%7D)
 [![Add to Cursor](https://img.shields.io/badge/Cursor-Add_One-000000?style=flat-square)](https://cursor.com/en/install-mcp?name=one&config=eyJ1cmwiOiAiaHR0cHM6Ly9tY3Aud2l0aG9uZS5haS9tY3AifQ==)
+[![Open in Windsurf](https://img.shields.io/badge/Windsurf-Open_One-09B6A2?style=flat-square)](windsurf://windsurf-mcp-registry?serverName=ai.withone/mcp)
+
+The Windsurf link opens One's page in the editor's MCP marketplace, which is served from the official MCP registry where One is published as `ai.withone/mcp`. Windsurf handles the OAuth sign-in itself once you install from that page.
 
 ## Manual Installation
 
