@@ -123,6 +123,9 @@ export interface SearchOnePlatformActionsArgs {
 export interface GetOneActionKnowledgeArgs {
   actionId: string;
   platform: string;
+  section?: string;
+  full?: boolean;
+  toc?: boolean;
 }
 
 /**

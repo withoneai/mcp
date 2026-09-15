@@ -45,6 +45,11 @@ export class OneClient {
   private connectors: ConnectionDefinition[] = [];
   private isInitialized = false;
   private allowedActionsCache: ResolvedAllowedAction[] | null = null;
+  // Short-lived cache of fetched action details, keyed by action ID. The
+  // knowledge digest and a follow-up section/toc/full call both need the same
+  // document, so this lets the follow-up reuse it instead of re-fetching.
+  private static readonly ACTION_DETAILS_TTL_MS = 5 * 60_000;
+  private readonly actionDetailsCache = new Map<string, { details: ActionDetails; expiresAt: number }>();
 
   constructor(options: OneClientOptions);
   constructor(secret: string, baseUrl?: string);
@@ -220,6 +225,11 @@ export class OneClient {
       throw new Error("Action ID is required");
     }
 
+    const cached = this.actionDetailsCache.get(actionId);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.details;
+    }
+
     try {
       const headers = this.generateHeaders();
       const url = `${this.baseUrl}/v1/knowledge`;
@@ -238,6 +248,10 @@ export class OneClient {
         throw new Error(`Action with ID ${actionId} not found`);
       }
 
+      this.actionDetailsCache.set(actionId, {
+        details: actions[0],
+        expiresAt: Date.now() + OneClient.ACTION_DETAILS_TTL_MS
+      });
       return actions[0];
     } catch (error) {
       console.error("Error fetching action details:", error);
