@@ -125,6 +125,7 @@ export interface GetOneActionKnowledgeArgs {
   platform: string;
   section?: string;
   full?: boolean;
+  toc?: boolean;
 }
 
 /**

@@ -19,7 +19,7 @@ import { OneClient } from './client.js';
 import {
   buildActionKnowledgeWithGuidance,
   buildKnowledgeModeGuidance,
-  buildDigestedKnowledge,
+  buildKnowledgeResponse,
   filterByPermissions,
   isMethodAllowed,
   isActionAllowed,
@@ -331,29 +331,24 @@ async function handleGetActionKnowledge(args: GetOneActionKnowledgeArgs) {
     }
 
     const { knowledge, method } = await oneClient.getActionKnowledge(actionId);
-    const digested = buildDigestedKnowledge(knowledge, args.platform, actionId, {
+    const response = buildKnowledgeResponse(knowledge, method, args.platform, actionId, {
       section: args.section,
       full: args.full,
+      toc: args.toc,
     });
-    if ("miss" in digested) {
-      return { content: [{ type: "text" as const, text: digested.miss }] };
-    }
 
-    const knowledgeWithGuidance = buildActionKnowledgeWithGuidance(
-      digested.text,
-      method,
-      oneClient.getBaseUrl(),
-      args.platform,
-      actionId
-    );
+    const text = response.wrap
+      ? buildActionKnowledgeWithGuidance(response.text, method, oneClient.getBaseUrl(), args.platform, actionId)
+      : response.text;
 
     return {
       content: [
         {
           type: "text" as const,
-          text: knowledgeWithGuidance,
+          text,
         },
       ],
+      structuredContent: response.structured,
     };
   } catch (error) {
     throw new McpError(

@@ -31,7 +31,8 @@ export const getOneActionKnowledgeInputSchema = {
     actionId: z.string().describe("The action ID to get knowledge for (from the actions list returned by search_one_platform_actions). REQUIRED: This tool must be called before execute_one_action to load the action's documentation into context."),
     platform: z.string().describe("The platform name to get knowledge for (e.g., 'ship-station', 'shopify'). This is the kebab-case version of the platform name that comes from the list_one_integrations tool AVAILABLE PLATFORMS section."),
     section: z.string().optional().describe("Load specific section(s) of the documentation by name (e.g. 'Response Fields', or comma-separated 'Response Fields, Optional Request Body Fields'). Large docs return a digest first; use this on a follow-up call to pull a section the digest omitted."),
-    full: z.boolean().optional().describe("Return the entire documentation verbatim instead of the token-saving digest. Ignored when `section` is set. Leave unset by default; only set it when you genuinely need every section.")
+    full: z.boolean().optional().describe("Return the entire documentation verbatim instead of the token-saving digest. Ignored when `section` is set. Leave unset by default; only set it when you genuinely need every section."),
+    toc: z.boolean().optional().describe("Return only the table of contents (every section's id, heading, and size), no bodies. Use it to see everything available when the digest collapsed its list. Ignored when `section` is set.")
 };
 
 /**

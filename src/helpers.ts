@@ -17,7 +17,19 @@ import {
   selectSections,
   flattenSections,
   parseSectionFlag,
+  collapseSections,
+  omittedSections,
 } from './knowledge-sections.js';
+
+/** A knowledge tool response: the text an agent reads plus a machine-readable
+ * envelope. `wrap` marks the digest/full case whose text should carry the API
+ * request guidance; sections, table-of-contents and not-found replies stand on
+ * their own. */
+export interface KnowledgeResponse {
+  text: string;
+  structured: Record<string, unknown>;
+  wrap: boolean;
+}
 
 /**
  * Paginates through API results by repeatedly calling a fetch function until all data is retrieved.
@@ -87,60 +99,121 @@ export async function fetchPaginatedData<T>(
 }
 
 /**
- * Reduce an action's knowledge document to what the agent asked for.
+ * Reduce an action's knowledge document to what the agent asked for, returning
+ * both the text to read and a machine-readable envelope.
  *
- * Large docs are handed back as a digest: the sections needed to build a
- * correct request in full, plus a trailer naming what was omitted. The agent
- * pulls an omitted section by name (`section`) or the whole document
- * (`full: true`) on a follow-up call. Small docs are returned unchanged, so
- * this only ever trims the long tail.
+ * By default a large doc is handed back as a digest (request-building sections
+ * in full, plus a trailer and a `sections` list naming what was omitted); a
+ * small doc is returned whole. `section` selects named section(s), `toc`
+ * returns the full table of contents, and `full` (or `section: "all"`) returns
+ * the document verbatim. Only the digest and full cases carry the API request
+ * guidance, so `wrap` is set for those.
  *
  * @param knowledge - The raw knowledge markdown for the action
+ * @param method - The action's HTTP method (echoed into the envelope)
  * @param platform - The kebab-case platform identifier (for the load-more hint)
  * @param actionId - The action ID (for the load-more hint)
- * @param options - `section` to select named section(s); `full` for the whole doc
- * @returns The markdown to place at the top of the tool response, or a `miss`
- *   message when a requested section name did not resolve
+ * @param options - `section`/`toc`/`full` select what to return
  */
-export function buildDigestedKnowledge(
+export function buildKnowledgeResponse(
   knowledge: string,
+  method: string,
   platform: string,
   actionId: string,
-  options: { section?: string; full?: boolean } = {}
-): { text: string } | { miss: string } {
+  options: { section?: string; full?: boolean; toc?: boolean } = {}
+): KnowledgeResponse {
   const doc = parseSections(knowledge);
+  const fullToc = flattenSections(doc.sections).map((s) => ({
+    id: s.id,
+    heading: s.heading,
+    level: s.level,
+    chars: s.chars,
+  }));
 
-  if (options.section) {
-    const result = selectSections(doc, parseSectionFlag(options.section));
-    if (!result.ok) {
-      const headings = flattenSections(doc.sections).map((s) => s.heading);
-      // Cap the list: a scraped mega-doc can carry hundreds of headings, and
-      // an unbounded error response would cost more than the digest it saves.
-      const MAX_LISTED = 40;
-      const available =
-        headings.length > MAX_LISTED
-          ? `${headings.slice(0, MAX_LISTED).join(', ')}, and ${headings.length - MAX_LISTED} more`
-          : headings.join(', ');
-      const reason = result.reason === 'ambiguous' ? 'matched more than one section' : 'was not found';
+  const sectionNames = parseSectionFlag(options.section);
+  const specificSections = sectionNames.filter((n) => n.toLowerCase() !== 'all');
+  // `full: true`, or a `section` value that is only "all", asks for the whole doc.
+  const wantFull = options.full === true || (sectionNames.length > 0 && specificSections.length === 0);
+
+  // A specific named section takes precedence over `toc` and `full`.
+  if (specificSections.length > 0) {
+    const picked = selectSections(doc, specificSections);
+    if (!picked.ok) {
+      // Collapse candidates the same way the digest does: a not-found on a
+      // 400-heading doc must not answer with tens of KB of names.
+      const toc = collapseSections(picked.candidates);
+      const listing = toc.sections
+        .map((c) => `${c.heading} [${c.id}] (${c.chars} chars${c.children ? `, +${c.children} nested` : ''})`)
+        .join('\n');
+      const lead =
+        picked.reason === 'ambiguous'
+          ? `Section "${picked.query}" matches several sections; pick one by id or full heading.`
+          : `No section named "${picked.query}". Use one of the names below, or full: true.`;
       return {
-        miss: `Section "${result.query}" ${reason}. Available sections: ${available}. Call get_one_action_knowledge again with one of these names, or with full: true.`,
+        wrap: false,
+        text: `${lead}\n\n${listing}`,
+        structured: {
+          error: lead,
+          query: picked.query,
+          reason: picked.reason,
+          sections: toc.sections,
+          ...(toc.collapsed ? { sectionsCollapsed: true, sectionCount: picked.candidates.length } : {}),
+        },
       };
     }
-    return { text: result.markdown };
+    return {
+      wrap: false,
+      text: picked.markdown,
+      structured: {
+        title: doc.title,
+        method,
+        truncated: false,
+        requested: specificSections,
+        resolved: picked.sections.map((s) => ({ id: s.id, heading: s.heading, chars: s.chars })),
+        sectionCount: fullToc.length,
+      },
+    };
+  }
+
+  if (options.toc) {
+    const listing = fullToc.length
+      ? fullToc.map((t) => `${'  '.repeat(Math.max(0, t.level - 1))}${t.heading} [${t.id}] (${t.chars} chars)`).join('\n')
+      : '(this document has no sections)';
+    return {
+      wrap: false,
+      text: `Table of contents. Load any by name with section: "<id or heading>", or the whole document with full: true.\n\n${listing}`,
+      structured: { title: doc.title, method, chars: doc.chars, sections: fullToc },
+    };
   }
 
   // `full`, and any document small enough to keep whole, are returned verbatim
   // rather than reconstructed from the parsed tree, so nothing is reformatted.
-  if (options.full) {
-    return { text: knowledge };
+  if (wantFull) {
+    return { wrap: true, text: knowledge, structured: { title: doc.title, method, truncated: false } };
   }
 
   const digest = buildDigest(doc);
   if (!digest.truncated) {
-    return { text: knowledge };
+    return { wrap: true, text: knowledge, structured: { title: doc.title, method, truncated: false } };
   }
-  const parts = [renderDigestBanner(digest), digest.markdown, renderDigestNotice(digest, platform, actionId)];
-  return { text: parts.filter(Boolean).join('\n\n') };
+
+  const toc = omittedSections(digest);
+  const text = [renderDigestBanner(digest), digest.markdown, renderDigestNotice(digest, platform, actionId)]
+    .filter(Boolean)
+    .join('\n\n');
+  return {
+    wrap: true,
+    text,
+    structured: {
+      title: doc.title,
+      method,
+      truncated: true,
+      omitted: digest.omitted,
+      omittedChars: digest.omittedChars,
+      sections: toc.sections,
+      ...(toc.collapsed ? { sectionsCollapsed: true, sectionCount: digest.sections.length } : {}),
+    },
+  };
 }
 
 /**
