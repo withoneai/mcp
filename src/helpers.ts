@@ -9,6 +9,15 @@
 
 import { PaginatedResponse, PermissionLevel, ConnectionAccess, ResolvedAllowedAction, ActionDetails } from './types.js';
 import axios, { AxiosResponse } from 'axios';
+import {
+  parseSections,
+  buildDigest,
+  renderDigestBanner,
+  renderDigestNotice,
+  selectSections,
+  flattenSections,
+  parseSectionFlag,
+} from './knowledge-sections.js';
 
 /**
  * Paginates through API results by repeatedly calling a fetch function until all data is retrieved.
@@ -75,6 +84,63 @@ export async function fetchPaginatedData<T>(
   };
 
   return paginateResults<T>(fetchFn);
+}
+
+/**
+ * Reduce an action's knowledge document to what the agent asked for.
+ *
+ * Large docs are handed back as a digest: the sections needed to build a
+ * correct request in full, plus a trailer naming what was omitted. The agent
+ * pulls an omitted section by name (`section`) or the whole document
+ * (`full: true`) on a follow-up call. Small docs are returned unchanged, so
+ * this only ever trims the long tail.
+ *
+ * @param knowledge - The raw knowledge markdown for the action
+ * @param platform - The kebab-case platform identifier (for the load-more hint)
+ * @param actionId - The action ID (for the load-more hint)
+ * @param options - `section` to select named section(s); `full` for the whole doc
+ * @returns The markdown to place at the top of the tool response, or a `miss`
+ *   message when a requested section name did not resolve
+ */
+export function buildDigestedKnowledge(
+  knowledge: string,
+  platform: string,
+  actionId: string,
+  options: { section?: string; full?: boolean } = {}
+): { text: string } | { miss: string } {
+  const doc = parseSections(knowledge);
+
+  if (options.section) {
+    const result = selectSections(doc, parseSectionFlag(options.section));
+    if (!result.ok) {
+      const headings = flattenSections(doc.sections).map((s) => s.heading);
+      // Cap the list: a scraped mega-doc can carry hundreds of headings, and
+      // an unbounded error response would cost more than the digest it saves.
+      const MAX_LISTED = 40;
+      const available =
+        headings.length > MAX_LISTED
+          ? `${headings.slice(0, MAX_LISTED).join(', ')}, and ${headings.length - MAX_LISTED} more`
+          : headings.join(', ');
+      const reason = result.reason === 'ambiguous' ? 'matched more than one section' : 'was not found';
+      return {
+        miss: `Section "${result.query}" ${reason}. Available sections: ${available}. Call get_one_action_knowledge again with one of these names, or with full: true.`,
+      };
+    }
+    return { text: result.markdown };
+  }
+
+  // `full`, and any document small enough to keep whole, are returned verbatim
+  // rather than reconstructed from the parsed tree, so nothing is reformatted.
+  if (options.full) {
+    return { text: knowledge };
+  }
+
+  const digest = buildDigest(doc);
+  if (!digest.truncated) {
+    return { text: knowledge };
+  }
+  const parts = [renderDigestBanner(digest), digest.markdown, renderDigestNotice(digest, platform, actionId)];
+  return { text: parts.filter(Boolean).join('\n\n') };
 }
 
 /**

@@ -19,6 +19,7 @@ import { OneClient } from './client.js';
 import {
   buildActionKnowledgeWithGuidance,
   buildKnowledgeModeGuidance,
+  buildDigestedKnowledge,
   filterByPermissions,
   isMethodAllowed,
   isActionAllowed,
@@ -307,6 +308,11 @@ async function handleGetActionKnowledge(args: GetOneActionKnowledgeArgs) {
     }
 
     if (ONE_KNOWLEDGE_AGENT) {
+      // Knowledge/code-gen mode returns the full document: the appended
+      // Integration Code Guide tells the agent to reproduce the complete
+      // input and output structure, which the digest would defer. Digesting
+      // is for the execute flow below, where the agent only needs to build
+      // one request.
       const details = await oneClient.getActionDetails(actionId);
       const knowledgeWithGuide = buildKnowledgeModeGuidance(
         details,
@@ -325,9 +331,16 @@ async function handleGetActionKnowledge(args: GetOneActionKnowledgeArgs) {
     }
 
     const { knowledge, method } = await oneClient.getActionKnowledge(actionId);
+    const digested = buildDigestedKnowledge(knowledge, args.platform, actionId, {
+      section: args.section,
+      full: args.full,
+    });
+    if ("miss" in digested) {
+      return { content: [{ type: "text" as const, text: digested.miss }] };
+    }
 
     const knowledgeWithGuidance = buildActionKnowledgeWithGuidance(
-      knowledge,
+      digested.text,
       method,
       oneClient.getBaseUrl(),
       args.platform,
