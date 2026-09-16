@@ -22,6 +22,65 @@ import {
 } from './types.js';
 import { fetchPaginatedData, replacePathVariables } from './helpers.js';
 
+/** Header names that only the server may set on an outgoing request. */
+const RESERVED_HEADER_PREFIX = 'x-one-';
+
+/**
+ * Drops any caller-supplied header that One itself controls (`x-one-secret`,
+ * `x-one-connection-key`, `x-one-action-id`, ...). Comparison is
+ * case-insensitive because HTTP header names are.
+ */
+export function stripReservedHeaders(headers?: Record<string, any>): Record<string, string> {
+  if (!headers) return {};
+  return Object.fromEntries(
+    Object.entries(headers)
+      .filter(([name]) => !name.toLowerCase().startsWith(RESERVED_HEADER_PREFIX))
+      .map(([name, value]) => [name, String(value)])
+  );
+}
+
+/**
+ * Bounds an upstream error body before it is logged: small payloads pass
+ * through, larger ones are truncated to a string, and an unserializable value
+ * is replaced with a placeholder. Keeps a huge or odd error response from
+ * bloating a single log line.
+ */
+function summarizeErrorData(data: unknown): unknown {
+  if (data === undefined || data === null) return undefined;
+  let serialized: string;
+  try {
+    serialized = typeof data === 'string' ? data : JSON.stringify(data);
+  } catch {
+    return '[unserializable response body]';
+  }
+  const MAX = 1000;
+  return serialized.length <= MAX ? data : `${serialized.slice(0, MAX)}… (${serialized.length} chars, truncated)`;
+}
+
+/**
+ * A log-safe summary of a failed request. Axios errors carry the full request
+ * config, including the `x-one-secret` header, so they must never be logged
+ * whole. Only the status, the upstream message, the route (query stripped), and
+ * a bounded copy of the response body are kept.
+ */
+export function describeError(error: unknown): Record<string, unknown> {
+  if (axios.isAxiosError(error)) {
+    const url = error.config?.url;
+    return {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      method: error.config?.method?.toUpperCase(),
+      url: typeof url === 'string' ? url.split('?')[0] : undefined,
+      message: error.message,
+      data: summarizeErrorData(error.response?.data),
+    };
+  }
+  if (error instanceof Error) {
+    return { name: error.name, message: error.message };
+  }
+  return { error: String(error) };
+}
+
 export type IdentityType = 'user' | 'team' | 'organization' | 'project';
 
 export interface OneClientOptions {
@@ -91,12 +150,12 @@ export class OneClient {
     const [connectionsResult, connectorsResult] = results;
 
     if (connectionsResult.status === 'rejected') {
-      console.error("Failed to fetch connections:", connectionsResult.reason);
+      console.error("Failed to fetch connections:", describeError(connectionsResult.reason));
       this.connections = [];
     }
 
     if (connectorsResult.status === 'rejected') {
-      console.error("Failed to fetch connectors:", connectorsResult.reason);
+      console.error("Failed to fetch connectors:", describeError(connectorsResult.reason));
       this.connectors = [];
     }
 
@@ -144,7 +203,7 @@ export class OneClient {
         Object.keys(additionalParams).length > 0 ? additionalParams : undefined
       );
     } catch (error) {
-      console.error("Failed to fetch connections:", error);
+      console.error("Failed to fetch connections:", describeError(error));
       this.connections = [];
       throw error;
     }
@@ -159,7 +218,7 @@ export class OneClient {
       const url = `${this.baseUrl}/v1/available-connectors`;
       this.connectors = await fetchPaginatedData<ConnectionDefinition>(url, headers);
     } catch (error) {
-      console.error("Failed to fetch connection definitions:", error);
+      console.error("Failed to fetch connection definitions:", describeError(error));
       this.connectors = [];
       throw error;
     }
@@ -206,7 +265,7 @@ export class OneClient {
 
       return response.data || [];
     } catch (error) {
-      console.error("Error searching available actions:", error);
+      console.error("Error searching available actions:", describeError(error));
       if (axios.isAxiosError(error)) {
         throw new Error(`Failed to search available actions: ${error.response?.status} ${error.response?.statusText}`);
       }
@@ -254,7 +313,7 @@ export class OneClient {
       });
       return actions[0];
     } catch (error) {
-      console.error("Error fetching action details:", error);
+      console.error("Error fetching action details:", describeError(error));
       if (axios.isAxiosError(error)) {
         throw new Error(`Failed to fetch action details: ${error.response?.status} ${error.response?.statusText}`);
       }
@@ -284,7 +343,7 @@ export class OneClient {
         method: action.method
       };
     } catch (error) {
-      console.error("Error fetching action knowledge:", error);
+      console.error("Error fetching action knowledge:", describeError(error));
       throw error;
     }
   }
@@ -321,7 +380,7 @@ export class OneClient {
             platform: action.connectionPlatform
           };
         } catch (error) {
-          console.error(`Failed to resolve allowed action ${actionId}:`, error);
+          console.error(`Failed to resolve allowed action ${actionId}:`, describeError(error));
           return null;
         }
       })
@@ -355,12 +414,23 @@ export class OneClient {
     const method = action.method;
     const contentType = isFormData ? 'multipart/form-data' : isFormUrlEncoded ? 'application/x-www-form-urlencoded' : 'application/json';
 
-    const requestHeaders = {
-      ...this.generateHeaders(),
+    // Caller-supplied headers are merged first and may adjust things like
+    // Content-Type, but they can never override One's own routing and auth
+    // headers. Those are applied last, after the connection and action
+    // allowlist checks in index.ts have already passed, so an `x-one-*`
+    // header in `headers` cannot redirect the call to another connection,
+    // action, or secret.
+    // Drop One's default Content-Type (any casing) so the caller's choice,
+    // merged in below, is not clobbered when the auth headers are applied last.
+    const authHeaders = Object.fromEntries(
+      Object.entries(this.generateHeaders()).filter(([name]) => name.toLowerCase() !== 'content-type')
+    );
+    const requestHeaders: Record<string, string> = {
+      'Content-Type': contentType,
+      ...stripReservedHeaders(headers),
+      ...authHeaders,
       'x-one-connection-key': connectionKey,
       'x-one-action-id': action._id,
-      'Content-Type': contentType,
-      ...headers
     };
 
     const finalActionPath = pathVariables
@@ -442,7 +512,7 @@ export class OneClient {
         responseData: response.data
       };
     } catch (error) {
-      console.error("Error executing passthrough request:", error);
+      console.error("Error executing passthrough request:", describeError(error));
       if (axios.isAxiosError(error)) {
         throw new Error(`Failed to execute passthrough request: ${error.response?.status} ${error.response?.statusText}`);
       }
