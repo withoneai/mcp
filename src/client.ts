@@ -40,9 +40,28 @@ export function stripReservedHeaders(headers?: Record<string, any>): Record<stri
 }
 
 /**
+ * Bounds an upstream error body before it is logged: small payloads pass
+ * through, larger ones are truncated to a string, and an unserializable value
+ * is replaced with a placeholder. Keeps a huge or odd error response from
+ * bloating a single log line.
+ */
+function summarizeErrorData(data: unknown): unknown {
+  if (data === undefined || data === null) return undefined;
+  let serialized: string;
+  try {
+    serialized = typeof data === 'string' ? data : JSON.stringify(data);
+  } catch {
+    return '[unserializable response body]';
+  }
+  const MAX = 1000;
+  return serialized.length <= MAX ? data : `${serialized.slice(0, MAX)}… (${serialized.length} chars, truncated)`;
+}
+
+/**
  * A log-safe summary of a failed request. Axios errors carry the full request
  * config, including the `x-one-secret` header, so they must never be logged
- * whole. Only the status, the upstream message, and the route are kept.
+ * whole. Only the status, the upstream message, the route (query stripped), and
+ * a bounded copy of the response body are kept.
  */
 export function describeError(error: unknown): Record<string, unknown> {
   if (axios.isAxiosError(error)) {
@@ -53,7 +72,7 @@ export function describeError(error: unknown): Record<string, unknown> {
       method: error.config?.method?.toUpperCase(),
       url: typeof url === 'string' ? url.split('?')[0] : undefined,
       message: error.message,
-      data: error.response?.data,
+      data: summarizeErrorData(error.response?.data),
     };
   }
   if (error instanceof Error) {
@@ -401,7 +420,11 @@ export class OneClient {
     // allowlist checks in index.ts have already passed, so an `x-one-*`
     // header in `headers` cannot redirect the call to another connection,
     // action, or secret.
-    const { 'Content-Type': _defaultContentType, ...authHeaders } = this.generateHeaders();
+    // Drop One's default Content-Type (any casing) so the caller's choice,
+    // merged in below, is not clobbered when the auth headers are applied last.
+    const authHeaders = Object.fromEntries(
+      Object.entries(this.generateHeaders()).filter(([name]) => name.toLowerCase() !== 'content-type')
+    );
     const requestHeaders: Record<string, string> = {
       'Content-Type': contentType,
       ...stripReservedHeaders(headers),
