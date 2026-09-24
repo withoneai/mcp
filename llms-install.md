@@ -63,7 +63,7 @@ Call `list_one_integrations`. A successful setup returns JSON containing a `conn
 The rest of the payload differs slightly between the two options, so do not key your success check on anything else:
 
 - Remote (Option A): `connections` plus `connectedCount`.
-- Local (Option B): `connections` plus `availablePlatforms` and `summary` (`{ "connectedCount": <n>, "availableCount": <n> }`).
+- Local (Option B): `connections` plus `summary` (`{ "connectedCount": <n> }`). With `ONE_KNOWLEDGE_AGENT=true` it also lists `availablePlatforms` and `summary.availableCount`.
 
 An empty `connections` list is still a successful install: it means the user has not connected any apps yet. In that case, tell the user to connect apps at https://app.withone.ai (or approve them on the OAuth consent screen for the remote server).
 

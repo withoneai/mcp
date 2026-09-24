@@ -19,7 +19,7 @@ export const listOneIntegrationsInputSchema = {};
  * Schema for searching platform actions
  */
 export const searchOnePlatformActionsInputSchema = {
-    platform: z.string().describe("The platform name to search actions for (e.g., 'ship-station', 'shopify'). This is the kebab-case version of the platform name that comes from the list_one_integrations tool AVAILABLE PLATFORMS section."),
+    platform: z.string().describe("The platform name to search actions for (e.g., 'ship-station', 'shopify'). This is the kebab-case platform name from list_one_integrations."),
     query: z.string().describe("The search query to find relevant actions (e.g., 'search contacts', 'create customer', 'send email'). Be specific about what you want to do."),
     agentType: z.enum(["execute", "knowledge"]).optional().describe("The type of agent context: 'execute' if the user wants to execute an action, 'knowledge' if they want to get information or write code. Defaults to 'knowledge' if not specified.")
 };
@@ -29,7 +29,7 @@ export const searchOnePlatformActionsInputSchema = {
  */
 export const getOneActionKnowledgeInputSchema = {
     actionId: z.string().describe("The action ID to get knowledge for (from the actions list returned by search_one_platform_actions). REQUIRED: This tool must be called before execute_one_action to load the action's documentation into context."),
-    platform: z.string().describe("The platform name to get knowledge for (e.g., 'ship-station', 'shopify'). This is the kebab-case version of the platform name that comes from the list_one_integrations tool AVAILABLE PLATFORMS section."),
+    platform: z.string().describe("The platform name to get knowledge for (e.g., 'ship-station', 'shopify'). This is the kebab-case platform name from list_one_integrations."),
     section: z.string().optional().describe("Load specific section(s) of the documentation by name (e.g. 'Response Fields', or comma-separated 'Response Fields, Optional Request Body Fields'). Large docs return a digest first; use this on a follow-up call to pull a section the digest omitted."),
     full: z.boolean().optional().describe("Return the entire documentation verbatim instead of the token-saving digest. Ignored when `section` is set. Leave unset by default; only set it when you genuinely need every section."),
     toc: z.boolean().optional().describe("Return only the table of contents (every section's id, heading, and size), no bodies. Use it to see everything available when the digest collapsed its list. Ignored when `section` is set.")
@@ -82,11 +82,11 @@ export const listOneIntegrationsOutputSchema = {
         platform: z.string(),
         name: z.string(),
         category: z.string()
-    })).describe("Array of available platforms that can be connected"),
+    })).optional().describe("Platforms that can be connected. Only listed in knowledge/code-gen mode"),
     summary: z.object({
         connectedCount: z.number(),
-        availableCount: z.number()
-    }).describe("Summary statistics of connections and available platforms")
+        availableCount: z.number().optional()
+    }).describe("Counts of connections (and available platforms in knowledge/code-gen mode)")
 };
 
 /**
@@ -111,7 +111,7 @@ export const searchOnePlatformActionsOutputSchema = {
  */
 export const listOneIntegrationsToolConfig = {
     title: "List One Integrations",
-    description: "List all available One integrations and platforms. ALWAYS call this tool first in any workflow to discover what platforms and connections are available. This returns the connections that the user has and all available One platforms in kebab-case format (e.g., 'ship-station', 'shopify') which you'll need for subsequent tool calls. Each connection carries an `access` field describing what you may run on it: `full`, a set of allowed HTTP `methods`, or a specific list of `actions` (each with `actionId`, `title`, `method`). When a connection is action-scoped, its `actions` are exactly what may run, so you need not search.",
+    description: "List the platforms the user has connected on One. ALWAYS call this tool first in any workflow. Each connection has the kebab-case `platform` name (e.g., 'ship-station', 'shopify') and the `key` (the connectionKey for execute_one_action) you'll need for subsequent tool calls. Each connection carries an `access` field describing what you may run on it: `full`, a set of allowed HTTP `methods`, or a specific list of `actions` (each with `actionId`, `title`, `method`). When a connection is action-scoped, its `actions` are exactly what may run, so you need not search.",
     inputSchema: listOneIntegrationsInputSchema,
     outputSchema: listOneIntegrationsOutputSchema
 };

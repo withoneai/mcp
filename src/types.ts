@@ -202,14 +202,16 @@ export interface ListIntegrationsResponse {
     tags: string[];
     access: ConnectionAccess;
   }>;
-  availablePlatforms: Array<{
+  /** Only in knowledge/code-gen mode (ONE_KNOWLEDGE_AGENT). */
+  availablePlatforms?: Array<{
     platform: string;
     name: string;
     category: string;
   }>;
   summary: {
     connectedCount: number;
-    availableCount: number;
+    /** Only in knowledge/code-gen mode (ONE_KNOWLEDGE_AGENT). */
+    availableCount?: number;
   };
 }
 
