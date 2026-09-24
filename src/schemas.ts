@@ -21,7 +21,7 @@ export const listOneIntegrationsInputSchema = {};
 export const searchOnePlatformActionsInputSchema = {
     platform: z.string().describe("The platform name to search actions for (e.g., 'ship-station', 'shopify'). This is the kebab-case platform name from list_one_integrations."),
     query: z.string().describe("The search query to find relevant actions (e.g., 'search contacts', 'create customer', 'send email'). Be specific about what you want to do."),
-    agentType: z.enum(["execute", "knowledge"]).optional().describe("The type of agent context: 'execute' if the user wants to execute an action, 'knowledge' if they want to get information or write code. Defaults to 'knowledge' if not specified.")
+    agentType: z.enum(["execute", "knowledge"]).optional().describe("The type of agent context: 'execute' if the user wants to execute an action, 'knowledge' if they want to get information or write code. Defaults to 'execute' when this server can execute actions (knowledge-only servers always use 'knowledge').")
 };
 
 /**
