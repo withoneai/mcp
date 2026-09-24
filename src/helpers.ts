@@ -7,7 +7,7 @@
  * @author One
  */
 
-import { PaginatedResponse, PermissionLevel, ConnectionAccess, ResolvedAllowedAction, ActionDetails } from './types.js';
+import { PaginatedResponse, PermissionLevel, ConnectionAccess, ResolvedAllowedAction, ActionDetails, Connection, ConnectionDefinition, ListIntegrationsResponse } from './types.js';
 import axios, { AxiosResponse } from 'axios';
 import {
   parseSections,
@@ -463,4 +463,44 @@ export function computeConnectionAccess(
   }
 
   return { policy: "full" };
+}
+
+/**
+ * Builds the `list_one_integrations` response: the user's active connections,
+ * each with the access the current config confers. Access is only defined per
+ * connection, so unconnected platforms are left out unless `available` is
+ * passed (knowledge/code-gen mode, where an agent may write code against a
+ * platform the user has not connected yet and needs its kebab-case name).
+ * @param connections - The user's connections
+ * @param access - The access config: permission level, action allowlist, and
+ *   the allowlist already resolved to action metadata
+ * @param available - Connection definitions to list as available platforms
+ */
+export function buildIntegrationsResponse(
+  connections: Connection[],
+  access: { permissions: PermissionLevel; actionIds: string[]; resolvedAllowed: ResolvedAllowedAction[] },
+  available?: ConnectionDefinition[]
+): ListIntegrationsResponse {
+  const active = connections.filter((conn) => conn.active);
+  const response: ListIntegrationsResponse = {
+    connections: active.map((conn) => ({
+      platform: conn.platform,
+      key: conn.key,
+      tags: conn.tags ?? [],
+      access: computeConnectionAccess(conn.platform, access.permissions, access.actionIds, access.resolvedAllowed),
+    })),
+    summary: { connectedCount: active.length },
+  };
+
+  if (available) {
+    const platforms = available.filter((def) => def.active && !def.deprecated);
+    response.availablePlatforms = platforms.map((def) => ({
+      platform: def.platform,
+      name: def.name,
+      category: def.category,
+    }));
+    response.summary.availableCount = platforms.length;
+  }
+
+  return response;
 }

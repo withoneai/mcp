@@ -23,7 +23,7 @@ import {
   filterByPermissions,
   isMethodAllowed,
   isActionAllowed,
-  computeConnectionAccess,
+  buildIntegrationsResponse,
 } from './helpers.js';
 import {
   listOneIntegrationsToolConfig,
@@ -81,6 +81,8 @@ const oneClient = new OneClient({
   identity: ONE_IDENTITY,
   identityType: ONE_IDENTITY_TYPE,
   connectionKeys: ONE_CONNECTION_KEYS,
+  // The platform catalog is only listed in knowledge/code-gen mode.
+  fetchConnectors: ONE_KNOWLEDGE_AGENT,
 });
 
 let oneInitialized = false;
@@ -156,41 +158,23 @@ if (!ONE_KNOWLEDGE_AGENT) {
 
 async function handleGetIntegrations(args: ListOneIntegrationsArgs) {
   try {
-    const connectedIntegrations = oneClient.getUserConnections();
-    const availableIntegrations = oneClient.getAvailableConnectors();
-
-    const activeConnections = connectedIntegrations.filter(conn => conn.active);
-    let activePlatforms = availableIntegrations.filter(def => def.active && !def.deprecated);
-
-    // When connection keys are scoped, only show platforms that match active connections
-    if (!ONE_CONNECTION_KEYS.includes("*")) {
-      const connectedPlatforms = new Set(activeConnections.map(conn => conn.platform));
-      activePlatforms = activePlatforms.filter(def => connectedPlatforms.has(def.platform));
-    }
-
     // Resolve the action allowlist to per-platform metadata (method-filtered by
     // the permission level) once, so each connection can report the exact
     // actions it may run. Only needed when an action allowlist is set.
     const resolvedAllowed = (await oneClient.resolveAllowedActions(ONE_ACTION_IDS))
       .filter(action => isMethodAllowed(action.method, ONE_PERMISSIONS));
 
-    const structuredResponse: ListIntegrationsResponse = {
-      connections: activeConnections.map(conn => ({
-        platform: conn.platform,
-        key: conn.key,
-        tags: conn.tags ?? [],
-        access: computeConnectionAccess(conn.platform, ONE_PERMISSIONS, ONE_ACTION_IDS, resolvedAllowed)
-      })),
-      availablePlatforms: activePlatforms.map(def => ({
-        platform: def.platform,
-        name: def.name,
-        category: def.category
-      })),
-      summary: {
-        connectedCount: activeConnections.length,
-        availableCount: activePlatforms.length
-      }
-    };
+    // Execute mode lists only connections: every connection carries its
+    // access, and the full catalog (800+ platforms) would sit in the agent's
+    // context for the rest of the session. Knowledge/code-gen mode also lists
+    // available platforms so code can target one that is not connected yet,
+    // unless connection keys are scoped.
+    const includeAvailable = ONE_KNOWLEDGE_AGENT && ONE_CONNECTION_KEYS.includes("*");
+    const structuredResponse: ListIntegrationsResponse = buildIntegrationsResponse(
+      oneClient.getUserConnections(),
+      { permissions: ONE_PERMISSIONS, actionIds: ONE_ACTION_IDS, resolvedAllowed },
+      includeAvailable ? oneClient.getAvailableConnectors() : undefined
+    );
 
     return {
       content: [

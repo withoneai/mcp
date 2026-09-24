@@ -89,6 +89,8 @@ export interface OneClientOptions {
   identity?: string;
   identityType?: IdentityType;
   connectionKeys?: string[];
+  /** Also load the platform catalog (available connectors). Defaults to true. */
+  fetchConnectors?: boolean;
 }
 
 /**
@@ -100,6 +102,7 @@ export class OneClient {
   private readonly identity?: string;
   private readonly identityType?: IdentityType;
   private readonly connectionKeys?: string[];
+  private readonly fetchConnectors: boolean = true;
   private connections: Connection[] = [];
   private connectors: ConnectionDefinition[] = [];
   private isInitialized = false;
@@ -130,6 +133,7 @@ export class OneClient {
       this.identity = optionsOrSecret.identity;
       this.identityType = optionsOrSecret.identityType;
       this.connectionKeys = optionsOrSecret.connectionKeys;
+      this.fetchConnectors = optionsOrSecret.fetchConnectors ?? true;
     }
   }
 
@@ -144,7 +148,7 @@ export class OneClient {
 
     const results = await Promise.allSettled([
       this.fetchConnections(),
-      this.fetchConnectionDefinitions(),
+      this.fetchConnectors ? this.fetchConnectionDefinitions() : Promise.resolve(),
     ]);
 
     const [connectionsResult, connectorsResult] = results;
@@ -557,7 +561,7 @@ export class OneClient {
   async refresh(): Promise<void> {
     await Promise.allSettled([
       this.fetchConnections(),
-      this.fetchConnectionDefinitions(),
+      this.fetchConnectors ? this.fetchConnectionDefinitions() : Promise.resolve(),
     ]);
   }
 }
