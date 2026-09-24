@@ -71,6 +71,16 @@ describe("executePassthroughRequest keeps One's headers authoritative", () => {
     assert.equal(h['content-type'], 'application/json', 'the default content type is kept');
   });
 
+  it('names the expected path variables instead of sending an unfilled template', async () => {
+    const client = new OneClient(SECRET, base);
+    const templated = { ...ACTION, path: '/v1/things/{{thingId}}' } as ActionDetails;
+    await assert.rejects(client.executePassthroughRequest(exec({}), templated), /pass pathVariables with: thingId/);
+    assert.equal(received.length, 0, 'nothing is sent upstream');
+
+    await client.executePassthroughRequest(exec({ pathVariables: { thing_id: 7 } }), templated);
+    assert.equal(received.length, 1);
+  });
+
   it('a caller may still set Content-Type, in any casing', async () => {
     const client = new OneClient(SECRET, base);
     await client.executePassthroughRequest(exec({ headers: { 'content-type': 'text/plain' } }), ACTION);

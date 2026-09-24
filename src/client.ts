@@ -437,9 +437,9 @@ export class OneClient {
       'x-one-action-id': action._id,
     };
 
-    const finalActionPath = pathVariables
-      ? replacePathVariables(action.path, pathVariables)
-      : action.path;
+    // Always substitute: a template sent with its {{placeholders}} unfilled
+    // only fails upstream, while this names the variables the path expects.
+    const finalActionPath = replacePathVariables(action.path, pathVariables ?? {});
 
     const normalizedPath = finalActionPath.startsWith('/') ? finalActionPath : `/${finalActionPath}`;
     const url = `${this.baseUrl}/v1/passthrough${normalizedPath}`;

@@ -316,40 +316,42 @@ const response = await fetch("${apiBase}/v1/passthrough${path}", {
 \`\`\``;
 }
 
+/** Folds a path variable name for loose matching: `ticket_id`, `ticketId`, `TICKET-ID` all fold to `ticketid`. */
+const foldVariableName = (name: string) => name.toLowerCase().replace(/[\s_-]/g, '');
+
 /**
  * Replaces path variables in a template string with actual values.
- * Path variables can be in either format: {variableName} or {{variableName}} and will be replaced with corresponding values.
+ * Path variables can be in either format: {variableName} or {{variableName}}.
+ * A variable is looked up by its exact name first, then by name ignoring case,
+ * underscores, hyphens and spaces, because knowledge docs and path templates
+ * do not always spell a variable the same way (`ticket_id` vs `{{ticketId}}`).
  * @param path - The template string containing path variables in {variableName} or {{variableName}} format
  * @param variables - Object containing variable names as keys and their replacement values
  * @returns The path string with all variables replaced by their encoded values
- * @throws Error if any required variable is missing, null, undefined, or empty string
+ * @throws Error if any required variable is missing, null, undefined, or empty string, naming every variable the path expects
  */
 export function replacePathVariables(path: string, variables: Record<string, string | number | boolean>): string {
   if (!path) return path;
 
-  let result = path;
+  const expected = [...path.matchAll(/\{\{([^}]+)\}\}|\{([^{}]+)\}/g)].map((m) => (m[1] ?? m[2]).trim());
+  const folded = new Map<string, string | number | boolean>();
+  for (const [key, value] of Object.entries(variables ?? {})) {
+    if (!folded.has(foldVariableName(key))) folded.set(foldVariableName(key), value);
+  }
 
-  // First, replace double bracket variables {{variableName}}
-  result = result.replace(/\{\{([^}]+)\}\}/g, (match, variable) => {
-    const trimmedVariable = variable.trim();
-    const value = variables[trimmedVariable];
+  const lookup = (variable: string) => {
+    const name = variable.trim();
+    const value = name in (variables ?? {}) ? variables[name] : folded.get(foldVariableName(name));
     if (value === undefined || value === null || value === '') {
-      throw new Error(`Missing value for path variable: ${trimmedVariable}`);
+      throw new Error(
+        `Missing value for path variable: ${name}. This action's path is ${path}; pass pathVariables with: ${[...new Set(expected)].join(', ')}.`
+      );
     }
     return encodeURIComponent(value.toString());
-  });
+  };
 
-  // Then, replace single bracket variables {variableName}
-  result = result.replace(/\{([^}]+)\}/g, (match, variable) => {
-    const trimmedVariable = variable.trim();
-    const value = variables[trimmedVariable];
-    if (value === undefined || value === null || value === '') {
-      throw new Error(`Missing value for path variable: ${trimmedVariable}`);
-    }
-    return encodeURIComponent(value.toString());
-  });
-
-  return result;
+  // Double brackets first, so {{name}} is not read as {name} wrapped in braces.
+  return path.replace(/\{\{([^}]+)\}\}/g, (_match, variable) => lookup(variable)).replace(/\{([^}]+)\}/g, (_match, variable) => lookup(variable));
 }
 
 const PERMISSION_METHODS: Record<PermissionLevel, string[] | null> = {
