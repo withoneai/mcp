@@ -22,13 +22,10 @@ import {
 } from './knowledge-sections.js';
 
 /** A knowledge tool response: the text an agent reads plus a machine-readable
- * envelope. `wrap` marks the digest/full case whose text should carry the API
- * request guidance; sections, table-of-contents and not-found replies stand on
- * their own. */
+ * envelope. */
 export interface KnowledgeResponse {
   text: string;
   structured: Record<string, unknown>;
-  wrap: boolean;
 }
 
 /**
@@ -106,8 +103,7 @@ export async function fetchPaginatedData<T>(
  * in full, plus a trailer and a `sections` list naming what was omitted); a
  * small doc is returned whole. `section` selects named section(s), `toc`
  * returns the full table of contents, and `full` (or `section: "all"`) returns
- * the document verbatim. Only the digest and full cases carry the API request
- * guidance, so `wrap` is set for those.
+ * the document verbatim.
  *
  * @param knowledge - The raw knowledge markdown for the action
  * @param method - The action's HTTP method (echoed into the envelope)
@@ -150,7 +146,6 @@ export function buildKnowledgeResponse(
           ? `Section "${picked.query}" matches several sections; pick one by id or full heading.`
           : `No section named "${picked.query}". Use one of the names below, or full: true.`;
       return {
-        wrap: false,
         text: `${lead}\n\n${listing}`,
         structured: {
           error: lead,
@@ -162,7 +157,6 @@ export function buildKnowledgeResponse(
       };
     }
     return {
-      wrap: false,
       text: picked.markdown,
       structured: {
         title: doc.title,
@@ -180,7 +174,6 @@ export function buildKnowledgeResponse(
       ? fullToc.map((t) => `${'  '.repeat(Math.max(0, t.level - 1))}${t.heading} [${t.id}] (${t.chars} chars)`).join('\n')
       : '(this document has no sections)';
     return {
-      wrap: false,
       text: `Table of contents. Load any by name with section: "<id or heading>", or the whole document with full: true.\n\n${listing}`,
       structured: { title: doc.title, method, chars: doc.chars, sections: fullToc },
     };
@@ -189,12 +182,12 @@ export function buildKnowledgeResponse(
   // `full`, and any document small enough to keep whole, are returned verbatim
   // rather than reconstructed from the parsed tree, so nothing is reformatted.
   if (wantFull) {
-    return { wrap: true, text: knowledge, structured: { title: doc.title, method, truncated: false } };
+    return { text: knowledge, structured: { title: doc.title, method, truncated: false } };
   }
 
   const digest = buildDigest(doc);
   if (!digest.truncated) {
-    return { wrap: true, text: knowledge, structured: { title: doc.title, method, truncated: false } };
+    return { text: knowledge, structured: { title: doc.title, method, truncated: false } };
   }
 
   const toc = omittedSections(digest);
@@ -202,7 +195,6 @@ export function buildKnowledgeResponse(
     .filter(Boolean)
     .join('\n\n');
   return {
-    wrap: true,
     text,
     structured: {
       title: doc.title,
@@ -214,50 +206,6 @@ export function buildKnowledgeResponse(
       ...(toc.collapsed ? { sectionsCollapsed: true, sectionCount: digest.sections.length } : {}),
     },
   };
-}
-
-/**
- * Builds action knowledge with API request structure guidance.
- * @param knowledge - The raw knowledge content for the action
- * @param method - The HTTP method for the action
- * @param baseUrl - The base URL for One API
- * @param platform - The platform name (used for connection key)
- * @param actionId - The action ID
- * @returns Complete formatted knowledge with API guidance
- */
-export function buildActionKnowledgeWithGuidance(
-  knowledge: string,
-  method: string,
-  baseUrl: string,
-  platform: string,
-  actionId: string
-): string {
-  const cleanBaseUrl = baseUrl.replace(/\/$/, '');
-
-  return `${knowledge}
-
-API REQUEST STRUCTURE
-======================
-URL: ${cleanBaseUrl}/v1/passthrough/{{PATH}}
-
-IMPORTANT: When constructing the URL, only include the API endpoint path after the base URL.
-Do NOT include the full third-party API URL.
-
-Examples:
-✅ Correct: ${cleanBaseUrl}/v1/passthrough/crm/v3/objects/contacts/search
-❌ Incorrect: ${cleanBaseUrl}/v1/passthrough/https://api.hubapi.com/crm/v3/objects/contacts/search
-
-METHOD: ${method}
-
-HEADERS:
-- x-one-secret: {{process.env.ONE_SECRET}}
-- x-one-connection-key: {{process.env.ONE_${platform.toUpperCase()}_CONNECTION_KEY}}
-- x-one-action-id: ${actionId}
-- ... (other headers)
-
-BODY: {{BODY}}
-
-QUERY PARAMS: {{QUERY_PARAMS}}`;
 }
 
 /**
