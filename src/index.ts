@@ -17,7 +17,6 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { OneClient } from './client.js';
 import {
-  buildActionKnowledgeWithGuidance,
   buildKnowledgeModeGuidance,
   buildKnowledgeResponse,
   filterByPermissions,
@@ -337,15 +336,14 @@ async function handleGetActionKnowledge(args: GetOneActionKnowledgeArgs) {
       toc: args.toc,
     });
 
-    const text = response.wrap
-      ? buildActionKnowledgeWithGuidance(response.text, method, oneClient.getBaseUrl(), args.platform, actionId)
-      : response.text;
-
+    // Execute mode returns the documentation alone: execute_one_action builds
+    // the passthrough request itself, so the raw-HTTP guidance code-gen mode
+    // appends (base URL, x-one-* headers, env var names) would only add tokens.
     return {
       content: [
         {
           type: "text" as const,
-          text,
+          text: response.text,
         },
       ],
       structuredContent: response.structured,

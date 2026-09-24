@@ -25,7 +25,6 @@ const SMALL = '# Tiny\n\n## Method\nGET\n\n## URL\n/x';
 describe('buildKnowledgeResponse', () => {
   it('digests a large doc: request-building sections in full, omitted ones named in the envelope', () => {
     const r = buildKnowledgeResponse(LARGE, 'POST', 'gmail', 'act_1', {});
-    assert.equal(r.wrap, true);
     assert.equal(r.structured.truncated, true);
     assert.ok((r.structured.omitted as number) >= 1);
     assert.ok(Array.isArray(r.structured.sections) && (r.structured.sections as unknown[]).length >= 1);
@@ -39,7 +38,6 @@ describe('buildKnowledgeResponse', () => {
 
   it('returns the whole table of contents for toc, with no bodies', () => {
     const r = buildKnowledgeResponse(LARGE, 'POST', 'gmail', 'act_1', { toc: true });
-    assert.equal(r.wrap, false);
     assert.ok((r.structured.sections as unknown[]).length >= 5);
     assert.ok(r.text.includes('[response-fields]'));
     assert.ok(!r.text.includes('Response Fields field 100'));
@@ -47,14 +45,12 @@ describe('buildKnowledgeResponse', () => {
 
   it('returns a named section with its body and what it resolved to', () => {
     const r = buildKnowledgeResponse(LARGE, 'POST', 'gmail', 'act_1', { section: 'Response Fields' });
-    assert.equal(r.wrap, false);
     assert.deepEqual((r.structured.resolved as { heading: string }[]).map((s) => s.heading), ['Response Fields']);
     assert.ok(r.text.includes('Response Fields field 100'));
   });
 
   it('reports a not-found section with a bounded candidate list', () => {
     const r = buildKnowledgeResponse(LARGE, 'POST', 'gmail', 'act_1', { section: 'nope' });
-    assert.equal(r.wrap, false);
     assert.ok(r.structured.error);
     assert.equal(r.structured.reason, 'not-found');
     assert.ok((r.structured.sections as unknown[]).length >= 1);
@@ -64,7 +60,6 @@ describe('buildKnowledgeResponse', () => {
   it('treats section: "all" and full: true as the verbatim whole document', () => {
     for (const opts of [{ section: 'all' }, { full: true }]) {
       const r = buildKnowledgeResponse(LARGE, 'POST', 'gmail', 'act_1', opts);
-      assert.equal(r.wrap, true);
       assert.equal(r.text, LARGE);
       assert.equal(r.structured.truncated, false);
     }
@@ -72,15 +67,22 @@ describe('buildKnowledgeResponse', () => {
 
   it('returns a small doc verbatim with no digest', () => {
     const r = buildKnowledgeResponse(SMALL, 'GET', 'gmail', 'act_1', {});
-    assert.equal(r.wrap, true);
     assert.equal(r.text, SMALL);
     assert.equal(r.structured.truncated, false);
   });
 
   it('section wins over full when both are set', () => {
     const r = buildKnowledgeResponse(LARGE, 'POST', 'gmail', 'act_1', { section: 'Response Fields', full: true });
-    assert.equal(r.wrap, false);
     assert.notEqual(r.text, LARGE);
     assert.ok(r.text.includes('Response Fields field 100'));
+  });
+});
+
+describe('execute-mode knowledge text', () => {
+  it('carries no raw-HTTP request guidance', () => {
+    for (const options of [{}, { full: true }, { section: 'Method' }, { toc: true }]) {
+      const r = buildKnowledgeResponse(LARGE, 'POST', 'gmail', 'act_1', options);
+      assert.doesNotMatch(r.text, /API REQUEST STRUCTURE|x-one-secret|\/v1\/passthrough/);
+    }
   });
 });
