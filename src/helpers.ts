@@ -454,14 +454,3 @@ export function buildIntegrationsResponse(
 
   return response;
 }
-
-/** Back office tag for actions agents must not use (a `custom` action covers them). */
-export const HIDDEN_FROM_AGENTS_TAG = "hidden:agents";
-
-/**
- * Whether an action is hidden from executing agents. Knowledge/code-gen mode
- * still sees these: writing integration code may target the raw endpoint.
- */
-export function isHiddenFromAgents(tags: string[] | undefined): boolean {
-  return (tags ?? []).includes(HIDDEN_FROM_AGENTS_TAG);
-}
