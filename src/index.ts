@@ -23,7 +23,6 @@ import {
   isMethodAllowed,
   isActionAllowed,
   buildIntegrationsResponse,
-  isHiddenFromAgents,
 } from './helpers.js';
 import {
   listOneIntegrationsToolConfig,
@@ -316,13 +315,6 @@ async function handleGetActionKnowledge(args: GetOneActionKnowledgeArgs) {
       };
     }
 
-    if (isHiddenFromAgents((await oneClient.getActionDetails(actionId)).tags)) {
-      throw new McpError(
-        ErrorCode.InvalidRequest,
-        `Action "${actionId}" is hidden from agents; search for the task again to find the action to use instead`
-      );
-    }
-
     const { knowledge, method } = await oneClient.getActionKnowledge(actionId);
     const response = buildKnowledgeResponse(knowledge, method, args.platform, actionId, {
       section: args.section,
@@ -370,13 +362,6 @@ async function handleExecuteOneAction(args: ExecuteOneActionArgs) {
     }
 
     const actionDetails = await oneClient.getActionDetails(args.actionId);
-
-    if (isHiddenFromAgents(actionDetails.tags)) {
-      throw new McpError(
-        ErrorCode.InvalidRequest,
-        `Action "${args.actionId}" is hidden from agents; search for the task again to find the action to use instead`
-      );
-    }
 
     if (!isMethodAllowed(actionDetails.method, ONE_PERMISSIONS)) {
       throw new McpError(
