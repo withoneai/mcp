@@ -1,7 +1,7 @@
 {
   "identifier": "withoneai-mcp",
   "name": "One",
-  "version": "1.2.4",
+  "version": "2.0.0",
   "description": "Search, document and execute authenticated API calls across 700+ apps via one MCP server",
   "summary": "Connect your agent to 700+ apps through one MCP server: four tools, real API documentation, OAuth sign-in.",
   "author": "withoneai",
@@ -193,127 +193,76 @@
       }
     },
     {
-      "name": "search_one_platform_actions",
-      "title": "Search Platform Actions",
-      "description": "Search for relevant actions on a specific platform using a query. Call this after list_one_integrations to find actions that match your intent. Returns the top 5 most relevant actions based on your search query. Use the exact kebab-case platform name from the integrations list.",
+      "name": "find_one_actions",
+      "title": "Find Platform Actions",
+      "description": "Use this to find the API actions a task needs, on any platforms, in one call: send one `requests` entry per operation (platform and a short intent) and get back, for each, the action to use with its documentation, plus a few alternatives. Large documents come back as a digest; call again with `load` for a section it omitted, the whole document, the table of contents, or an alternative's documentation. Results are limited to what this server's settings allow. Call list_one_integrations first to see the connected platforms.",
       "inputSchema": {
         "type": "object",
         "properties": {
-          "platform": {
-            "type": "string",
-            "description": "The platform name to search actions for (e.g., 'ship-station', 'shopify'). This is the kebab-case version of the platform name that comes from the list_one_integrations tool AVAILABLE PLATFORMS section."
-          },
-          "query": {
-            "type": "string",
-            "description": "The search query to find relevant actions (e.g., 'search contacts', 'create customer', 'send email'). Be specific about what you want to do."
-          },
-          "agentType": {
-            "type": "string",
-            "enum": [
-              "execute",
-              "knowledge"
-            ],
-            "description": "The type of agent context: 'execute' if the user wants to execute an action, 'knowledge' if they want to get information or write code. Defaults to 'knowledge' if not specified."
-          }
-        },
-        "required": [
-          "platform",
-          "query"
-        ],
-        "additionalProperties": false,
-        "$schema": "http://json-schema.org/draft-07/schema#"
-      },
-      "outputSchema": {
-        "type": "object",
-        "properties": {
-          "actions": {
+          "requests": {
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
-                "actionId": {
+                "platform": {
                   "type": "string",
-                  "description": "Unique identifier for the action"
+                  "description": "The kebab-case platform identifier (e.g. \"gmail\", \"stripe\")."
                 },
-                "title": {
+                "intent": {
                   "type": "string",
-                  "description": "Human-readable action name"
-                },
-                "method": {
-                  "type": "string",
-                  "description": "HTTP method (GET, POST, etc.)"
-                },
-                "path": {
-                  "type": "string",
-                  "description": "API endpoint path"
+                  "description": "The operation alone, in a few words (e.g. \"send a message to a channel\"), without its data: no IDs, names or message text."
                 }
               },
               "required": [
-                "actionId",
-                "title",
-                "method",
-                "path"
+                "platform",
+                "intent"
               ],
               "additionalProperties": false
             },
-            "description": "Array of matching actions (max 5)"
+            "minItems": 1,
+            "maxItems": 10,
+            "description": "What to do, one entry per API operation, on any platforms (1 to 10). Each is the kebab-case platform (e.g. \"gmail\", \"hubspot\") and a short intent (e.g. \"send an email\", \"find a contact by email\")."
           },
-          "metadata": {
-            "type": "object",
-            "properties": {
-              "platform": {
-                "type": "string",
-                "description": "Platform that was searched"
+          "task": {
+            "type": "string",
+            "description": "The whole task in one line, in general terms (e.g. \"email a report to a contact\"): what it does, without names, addresses, IDs or message text. It helps choose between similar actions. Never the chat history. Only with `requests`."
+          },
+          "load": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "action_id": {
+                  "type": "string",
+                  "description": "The actionId from a find_one_actions answer."
+                },
+                "section": {
+                  "type": "string",
+                  "description": "Section name(s) to load, comma-separated (e.g. \"Response Fields\"). Omit, with `full` and `toc` unset, for the digest. In knowledge mode every load returns the whole document, so `section` and `toc` do not narrow it."
+                },
+                "full": {
+                  "type": "boolean",
+                  "description": "Load the whole document. Ignored when `section` is set."
+                },
+                "toc": {
+                  "type": "boolean",
+                  "description": "Load only the table of contents. Ignored when `section` is set."
+                }
               },
-              "query": {
-                "type": "string",
-                "description": "Search query used"
-              },
-              "count": {
-                "type": "number",
-                "description": "Number of results returned"
-              }
+              "required": [
+                "action_id"
+              ],
+              "additionalProperties": false
             },
-            "required": [
-              "platform",
-              "query",
-              "count"
-            ],
-            "additionalProperties": false,
-            "description": "Metadata about the search results"
-          }
-        },
-        "required": [
-          "actions",
-          "metadata"
-        ],
-        "additionalProperties": false,
-        "$schema": "http://json-schema.org/draft-07/schema#"
-      },
-      "execution": {
-        "taskSupport": "forbidden"
-      }
-    },
-    {
-      "name": "get_one_action_knowledge",
-      "title": "Get Action Knowledge",
-      "description": "Get comprehensive documentation for a specific action including parameters, requirements, and usage examples. MANDATORY: You MUST call this tool before execute_one_action to understand the action's requirements, parameter structure, caveats, and proper usage. This loads the action documentation into context and is required for successful execution.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "actionId": {
-            "type": "string",
-            "description": "The action ID to get knowledge for (from the actions list returned by search_one_platform_actions). REQUIRED: This tool must be called before execute_one_action to load the action's documentation into context."
+            "minItems": 1,
+            "maxItems": 10,
+            "description": "More documentation for actions already found (1 to 10): a section the digest omitted, the whole document, the table of contents, or an alternative's documentation. Use instead of `requests`."
           },
-          "platform": {
+          "ai_model": {
             "type": "string",
-            "description": "The platform name to get knowledge for (e.g., 'ship-station', 'shopify'). This is the kebab-case version of the platform name that comes from the list_one_integrations tool AVAILABLE PLATFORMS section."
+            "description": "The AI model you are running as (e.g. \"claude-sonnet-5\", \"gpt-5\"), which helps optimize the documentation returned. Optional."
           }
         },
-        "required": [
-          "actionId",
-          "platform"
-        ],
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
@@ -324,7 +273,7 @@
     {
       "name": "execute_one_action",
       "title": "Execute One Action",
-      "description": "Execute a One action to perform actual operations on third-party platforms. CRITICAL: Only call this when the user's intent is to EXECUTE an action (e.g., 'read my last Gmail email', 'fetch 5 contacts from HubSpot', 'create a task in Asana'). DO NOT call this when the user wants to BUILD or CREATE code/forms/applications - in those cases, stop after get_one_action_knowledge and provide implementation guidance instead. REQUIRED WORKFLOW: Must call get_one_action_knowledge first. If uncertain about execution intent or parameters, ask for confirmation before proceeding.",
+      "description": "Execute a One action to perform actual operations on third-party platforms. CRITICAL: Only call this when the user's intent is to EXECUTE an action (e.g., 'read my last Gmail email', 'fetch 5 contacts from HubSpot', 'create a task in Asana'). DO NOT call this when the user wants to BUILD or CREATE code/forms/applications - in those cases, stop after find_one_actions and provide implementation guidance instead. REQUIRED WORKFLOW: Must call find_one_actions first, which returns the action's documentation. If uncertain about execution intent or parameters, ask for confirmation before proceeding.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -334,7 +283,7 @@
           },
           "actionId": {
             "type": "string",
-            "description": "Action ID from search_one_platform_actions"
+            "description": "The actionId from find_one_actions"
           },
           "connectionKey": {
             "type": "string",

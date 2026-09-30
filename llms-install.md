@@ -4,13 +4,12 @@ This guide is for AI agents (Cline, Claude, Cursor, and similar) setting up the 
 
 ## What this server does
 
-One connects the agent to 700+ apps (Gmail, Slack, Stripe, Shopify, HubSpot, Notion, Linear, Salesforce, QuickBooks, and more) through four tools:
+One connects the agent to 700+ apps (Gmail, Slack, Stripe, Shopify, HubSpot, Notion, Linear, Salesforce, QuickBooks, and more) through three tools:
 
 | Tool | Purpose |
 |------|---------|
 | `list_one_integrations` | List the user's connected platforms, each with the access it grants |
-| `search_one_platform_actions` | Search actions on a platform |
-| `get_one_action_knowledge` | Read an action's real parameters and docs before calling it |
+| `find_one_actions` | Find the action for each operation a task needs, with its real parameters and docs, before calling it |
 | `execute_one_action` | Execute the action against the live account |
 
 ## Option A: Remote server (recommended, OAuth, nothing to install)
@@ -32,7 +31,7 @@ Add this entry to the client's MCP settings file (for Cline: `cline_mcp_settings
 
 Important: include `"type": "streamableHttp"` explicitly. Some clients treat a missing `type` as legacy SSE and will fail to connect.
 
-Authentication: the first connection returns 401 and the client surfaces an OAuth authorize action. That opens the user's browser to One's consent screen (creating an account there is free). After the user approves, the four tools become available. No API key is needed and no secret is written to the settings file.
+Authentication: the first connection returns 401 and the client surfaces an OAuth authorize action. That opens the user's browser to One's consent screen (creating an account there is free). After the user approves, the three tools become available. No API key is needed and no secret is written to the settings file.
 
 ## Option B: Local server (npx, API key)
 

@@ -12,12 +12,12 @@ import FormData from 'form-data';
 import {
   Connection,
   ConnectionDefinition,
-  AvailableAction,
   ActionDetails,
-  GetOneActionKnowledgeResponse,
   ExecuteOneActionArgs,
   RequestConfig,
   ExecutePassthroughResponse,
+  FindIntent,
+  FoundActions,
   ResolvedAllowedAction
 } from './types.js';
 import { fetchPaginatedData, replacePathVariables } from './helpers.js';
@@ -229,51 +229,30 @@ export class OneClient {
   }
 
   /**
-   * Searches for actions on a specific platform using a query
-   * @param platform - The platform name to search actions for
-   * @param query - The search query to find relevant actions
-   * @param agentType - The type of agent context (execute or knowledge)
-   * @returns Array of top 5 most relevant actions for the platform
-   * @throws {Error} If platform or query is not provided or API request fails
+   * Finds the action for each intent, across platforms, in one call: search
+   * plus One's decision model, which picks among the candidates.
+   * @param requests - One entry per operation, `{ platform, intent }`
+   * @param task - The whole task in one line, which helps break ties
+   * @param knowledgeAgent - Search the catalog for writing integration code
+   *   rather than the one for executing actions
+   * @returns One answer per intent, in the order asked
+   * @throws {Error} Naming core's reason when it refuses the request
    */
-  async searchAvailableActions(platform: string, query: string, agentType?: "execute" | "knowledge"): Promise<AvailableAction[]> {
-    if (!platform?.trim()) {
-      throw new Error("Platform name is required");
-    }
-    if (!query?.trim()) {
-      throw new Error("Search query is required");
-    }
-
+  async findActions(requests: FindIntent[], task: string | undefined, knowledgeAgent: boolean): Promise<FoundActions[]> {
     try {
-      const headers = this.generateHeaders();
-      const url = `${this.baseUrl}/v1/available-actions/search/${platform}`;
-
-      // Default to knowledgeAgent if not specified
-      const isKnowledgeAgent = !agentType || agentType === "knowledge";
-
-      const params: Record<string, string> = {
-        query,
-        limit: '5'
-      };
-
-      if (isKnowledgeAgent) {
-        params.knowledgeAgent = 'true';
-      } else {
-        params.executeAgent = 'true';
-      }
-
-      const response: AxiosResponse<AvailableAction[]> = await axios.get(url, {
-        headers,
-        params
-      });
-
+      const response: AxiosResponse<FoundActions[]> = await axios.post(
+        `${this.baseUrl}/v1/available-actions/find`,
+        { requests, ...(task ? { task } : {}), knowledgeAgent },
+        { headers: this.generateHeaders() }
+      );
       return response.data || [];
     } catch (error) {
-      console.error("Error searching available actions:", describeError(error));
+      console.error("Error finding actions:", describeError(error));
       if (axios.isAxiosError(error)) {
-        throw new Error(`Failed to search available actions: ${error.response?.status} ${error.response?.statusText}`);
+        const reason = (error.response?.data as { message?: string } | undefined)?.message;
+        throw new Error(`Failed to find actions: ${reason ?? `${error.response?.status} ${error.response?.statusText}`}`);
       }
-      throw new Error("Failed to search available actions");
+      throw new Error("Failed to find actions");
     }
   }
 
@@ -322,33 +301,6 @@ export class OneClient {
         throw new Error(`Failed to fetch action details: ${error.response?.status} ${error.response?.statusText}`);
       }
       throw new Error("Failed to fetch action details");
-    }
-  }
-
-  /**
-   * Gets knowledge for a specific action by ID
-   * @param actionId - The action ID to get knowledge for
-   * @returns The knowledge string for the action
-   * @throws {Error} If action ID is not provided or API request fails
-   */
-  async getActionKnowledge(actionId: string): Promise<GetOneActionKnowledgeResponse> {
-    try {
-      const action = await this.getActionDetails(actionId);
-
-      if (!action.knowledge || !action.method) {
-        return {
-          knowledge: "No knowledge was found",
-          method: "No method was found"
-        };
-      }
-
-      return {
-        knowledge: action.knowledge,
-        method: action.method
-      };
-    } catch (error) {
-      console.error("Error fetching action knowledge:", describeError(error));
-      throw error;
     }
   }
 

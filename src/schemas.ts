@@ -16,23 +16,22 @@ import { z } from 'zod';
 export const listOneIntegrationsInputSchema = {};
 
 /**
- * Schema for searching platform actions
+ * Schema for finding actions and their documentation. Worded as the remote
+ * MCP's `find_one_actions`, so an agent reads one tool on either surface.
  */
-export const searchOnePlatformActionsInputSchema = {
-    platform: z.string().describe("The platform name to search actions for (e.g., 'ship-station', 'shopify'). This is the kebab-case platform name from list_one_integrations."),
-    query: z.string().describe("The search query to find relevant actions (e.g., 'search contacts', 'create customer', 'send email'). Be specific about what you want to do."),
-    agentType: z.enum(["execute", "knowledge"]).optional().describe("The type of agent context: 'execute' if the user wants to execute an action, 'knowledge' if they want to get information or write code. Defaults to 'execute' when this server can execute actions (knowledge-only servers always use 'knowledge').")
-};
-
-/**
- * Schema for getting action knowledge
- */
-export const getOneActionKnowledgeInputSchema = {
-    actionId: z.string().describe("The action ID to get knowledge for (from the actions list returned by search_one_platform_actions). REQUIRED: This tool must be called before execute_one_action to load the action's documentation into context."),
-    platform: z.string().describe("The platform name to get knowledge for (e.g., 'ship-station', 'shopify'). This is the kebab-case platform name from list_one_integrations."),
-    section: z.string().optional().describe("Load specific section(s) of the documentation by name (e.g. 'Response Fields', or comma-separated 'Response Fields, Optional Request Body Fields'). Large docs return a digest first; use this on a follow-up call to pull a section the digest omitted."),
-    full: z.boolean().optional().describe("Return the entire documentation verbatim instead of the token-saving digest. Ignored when `section` is set. Leave unset by default; only set it when you genuinely need every section."),
-    toc: z.boolean().optional().describe("Return only the table of contents (every section's id, heading, and size), no bodies. Use it to see everything available when the digest collapsed its list. Ignored when `section` is set.")
+export const findOneActionsInputSchema = {
+    requests: z.array(z.object({
+        platform: z.string().describe('The kebab-case platform identifier (e.g. "gmail", "stripe").'),
+        intent: z.string().describe('The operation alone, in a few words (e.g. "send a message to a channel"), without its data: no IDs, names or message text.')
+    })).min(1).max(10).optional().describe('What to do, one entry per API operation, on any platforms (1 to 10). Each is the kebab-case platform (e.g. "gmail", "hubspot") and a short intent (e.g. "send an email", "find a contact by email").'),
+    task: z.string().optional().describe('The whole task in one line, in general terms (e.g. "email a report to a contact"): what it does, without names, addresses, IDs or message text. It helps choose between similar actions. Never the chat history. Only with `requests`.'),
+    load: z.array(z.object({
+        action_id: z.string().describe("The actionId from a find_one_actions answer."),
+        section: z.string().optional().describe('Section name(s) to load, comma-separated (e.g. "Response Fields"). Omit, with `full` and `toc` unset, for the digest. In knowledge mode every load returns the whole document, so `section` and `toc` do not narrow it.'),
+        full: z.boolean().optional().describe("Load the whole document. Ignored when `section` is set."),
+        toc: z.boolean().optional().describe("Load only the table of contents. Ignored when `section` is set.")
+    })).min(1).max(10).optional().describe("More documentation for actions already found (1 to 10): a section the digest omitted, the whole document, the table of contents, or an alternative's documentation. Use instead of `requests`."),
+    ai_model: z.string().optional().describe('The AI model you are running as (e.g. "claude-sonnet-5", "gpt-5"), which helps optimize the documentation returned. Optional.')
 };
 
 /**
@@ -40,7 +39,7 @@ export const getOneActionKnowledgeInputSchema = {
  */
 export const executeOneActionInputSchema = {
     platform: z.string().describe("Platform name"),
-    actionId: z.string().describe("Action ID from search_one_platform_actions"),
+    actionId: z.string().describe("The actionId from find_one_actions"),
     connectionKey: z.string().describe("Key of the connection to use"),
     data: z.any().optional().describe("Request data (for POST, PUT, etc.)"),
     pathVariables: z.record(z.union([z.string(), z.number(), z.boolean()])).optional().describe("Variables to replace in the path"),
@@ -90,23 +89,6 @@ export const listOneIntegrationsOutputSchema = {
 };
 
 /**
- * Output schemas for search_one_platform_actions tool
- */
-export const searchOnePlatformActionsOutputSchema = {
-    actions: z.array(z.object({
-        actionId: z.string().describe("Unique identifier for the action"),
-        title: z.string().describe("Human-readable action name"),
-        method: z.string().describe("HTTP method (GET, POST, etc.)"),
-        path: z.string().describe("API endpoint path")
-    })).describe("Array of matching actions (max 5)"),
-    metadata: z.object({
-        platform: z.string().describe("Platform that was searched"),
-        query: z.string().describe("Search query used"),
-        count: z.number().describe("Number of results returned")
-    }).describe("Metadata about the search results")
-};
-
-/**
  * Tool configuration objects for registerTool
  */
 export const listOneIntegrationsToolConfig = {
@@ -116,22 +98,15 @@ export const listOneIntegrationsToolConfig = {
     outputSchema: listOneIntegrationsOutputSchema
 };
 
-export const searchOnePlatformActionsToolConfig = {
-    title: "Search Platform Actions",
-    description: "Search for relevant actions on a specific platform using a query. Call this after list_one_integrations to find actions that match your intent. Returns the top 5 most relevant actions based on your search query. Use the exact kebab-case platform name from the integrations list.",
-    inputSchema: searchOnePlatformActionsInputSchema,
-    outputSchema: searchOnePlatformActionsOutputSchema
-};
-
-export const getOneActionKnowledgeToolConfig = {
-    title: "Get Action Knowledge",
-    description: "Get comprehensive documentation for a specific action including parameters, requirements, and usage examples. MANDATORY: You MUST call this tool before execute_one_action to understand the action's requirements, parameter structure, caveats, and proper usage. This loads the action documentation into context and is required for successful execution. Large documents come back as a digest (the sections needed to build a correct request, plus a list of what was omitted); request an omitted section by name with `section`, or the whole document with `full: true`.",
-    inputSchema: getOneActionKnowledgeInputSchema
+export const findOneActionsToolConfig = {
+    title: "Find Platform Actions",
+    description: "Use this to find the API actions a task needs, on any platforms, in one call: send one `requests` entry per operation (platform and a short intent) and get back, for each, the action to use with its documentation, plus a few alternatives. Large documents come back as a digest; call again with `load` for a section it omitted, the whole document, the table of contents, or an alternative's documentation. Results are limited to what this server's settings allow. Call list_one_integrations first to see the connected platforms.",
+    inputSchema: findOneActionsInputSchema
 };
 
 export const executeOneActionToolConfig = {
     title: "Execute One Action",
-    description: "Execute a One action to perform actual operations on third-party platforms. CRITICAL: Only call this when the user's intent is to EXECUTE an action (e.g., 'read my last Gmail email', 'fetch 5 contacts from HubSpot', 'create a task in Asana'). DO NOT call this when the user wants to BUILD or CREATE code/forms/applications - in those cases, stop after get_one_action_knowledge and provide implementation guidance instead. REQUIRED WORKFLOW: Must call get_one_action_knowledge first. If uncertain about execution intent or parameters, ask for confirmation before proceeding.",
+    description: "Execute a One action to perform actual operations on third-party platforms. CRITICAL: Only call this when the user's intent is to EXECUTE an action (e.g., 'read my last Gmail email', 'fetch 5 contacts from HubSpot', 'create a task in Asana'). DO NOT call this when the user wants to BUILD or CREATE code/forms/applications - in those cases, stop after find_one_actions and provide implementation guidance instead. REQUIRED WORKFLOW: Must call find_one_actions first, which returns the action's documentation. If uncertain about execution intent or parameters, ask for confirmation before proceeding.",
     inputSchema: executeOneActionInputSchema
 };
 
@@ -139,6 +114,5 @@ export const executeOneActionToolConfig = {
  * Zod object schemas for type inference (for internal use)
  */
 export const listOneIntegrationsZodSchema = z.object(listOneIntegrationsInputSchema);
-export const searchOnePlatformActionsZodSchema = z.object(searchOnePlatformActionsInputSchema);
-export const getOneActionKnowledgeZodSchema = z.object(getOneActionKnowledgeInputSchema);
+export const findOneActionsZodSchema = z.object(findOneActionsInputSchema);
 export const executeOneActionZodSchema = z.object(executeOneActionInputSchema);

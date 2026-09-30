@@ -17,30 +17,24 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { OneClient } from './client.js';
 import {
-  buildKnowledgeModeGuidance,
-  buildKnowledgeResponse,
-  filterByPermissions,
   isMethodAllowed,
   isActionAllowed,
   buildIntegrationsResponse,
 } from './helpers.js';
+import { FindArgsError, findOneActions } from './find.js';
 import {
   listOneIntegrationsToolConfig,
-  searchOnePlatformActionsToolConfig,
-  getOneActionKnowledgeToolConfig,
+  findOneActionsToolConfig,
   executeOneActionToolConfig,
   listOneIntegrationsZodSchema,
-  searchOnePlatformActionsZodSchema,
-  getOneActionKnowledgeZodSchema,
+  findOneActionsZodSchema,
   executeOneActionZodSchema
 } from './schemas.js';
 import {
   ListOneIntegrationsArgs,
-  SearchOnePlatformActionsArgs,
-  GetOneActionKnowledgeArgs,
+  FindOneActionsArgs,
   ExecuteOneActionArgs,
   ListIntegrationsResponse,
-  SearchActionsResponse,
   PermissionLevel
 } from './types.js';
 import { z } from 'zod';
@@ -127,20 +121,11 @@ server.registerTool(
 );
 
 server.registerTool(
-  "search_one_platform_actions",
-  searchOnePlatformActionsToolConfig,
-  async (args: z.infer<typeof searchOnePlatformActionsZodSchema>) => {
+  "find_one_actions",
+  findOneActionsToolConfig,
+  async (args: z.infer<typeof findOneActionsZodSchema>) => {
     await initializeOne();
-    return await handleSearchPlatformActions(args as SearchOnePlatformActionsArgs);
-  }
-);
-
-server.registerTool(
-  "get_one_action_knowledge",
-  getOneActionKnowledgeToolConfig,
-  async (args: z.infer<typeof getOneActionKnowledgeZodSchema>) => {
-    await initializeOne();
-    return await handleGetActionKnowledge(args as GetOneActionKnowledgeArgs);
+    return await handleFindOneActions(args as FindOneActionsArgs);
   }
 );
 
@@ -192,152 +177,38 @@ async function handleGetIntegrations(args: ListOneIntegrationsArgs) {
   }
 }
 
-async function handleSearchPlatformActions(args: SearchOnePlatformActionsArgs) {
+async function handleFindOneActions(args: FindOneActionsArgs) {
   try {
-    // Force knowledge mode when ONE_KNOWLEDGE_AGENT is enabled
-    // With execute available, default to the execute catalog: it hides actions
-    // tagged hidden:agents and offers the custom actions that replace them.
-    const agentType = ONE_KNOWLEDGE_AGENT ? "knowledge" : (args.agentType ?? "execute");
-    let actions = await oneClient.searchAvailableActions(args.platform, args.query, agentType);
-
-    // Apply permission-level filtering
-    actions = filterByPermissions(actions, ONE_PERMISSIONS);
-
-    // Apply action allowlist filtering
-    actions = actions.filter(a => isActionAllowed(a.systemId, ONE_ACTION_IDS));
-
-    const cleanedActions = actions.map(action => ({
-      actionId: action.systemId,
-      title: action.title,
-      method: action.method,
-      path: action.path
-    }));
-
-    // Handle empty results with helpful suggestions
-    if (cleanedActions.length === 0) {
-      const suggestionsText = `No actions found for platform '${args.platform}' matching query '${args.query}'.
-
-SUGGESTIONS:
-- Try a more general query (e.g., 'list', 'get', 'search', 'create')
-- Verify the platform name is correct
-- Check that actions exist for this platform using list_one_integrations
-
-EXAMPLES OF GOOD QUERIES:
-- "search contacts"
-- "send email"
-- "create customer"
-- "list orders"`;
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: suggestionsText,
-          },
-        ],
-      };
-    }
-
-    // Build structured response
-    const structuredResponse: SearchActionsResponse = {
-      actions: cleanedActions,
-      metadata: {
-        platform: args.platform,
-        query: args.query,
-        count: cleanedActions.length
-      }
-    };
-
-    const responseText = `Found ${cleanedActions.length} action(s) for platform '${args.platform}' matching query '${args.query}':
-
-${JSON.stringify(structuredResponse, null, 2)}
-
-NEXT STEP: Use get_one_action_knowledge with an actionId to get detailed documentation before building requests or executing actions.`;
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: responseText,
-        },
-      ],
-      structuredContent: structuredResponse,
-    };
-  } catch (error) {
-    throw new McpError(
-      ErrorCode.InternalError,
-      `Failed to search platform actions: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
-}
-
-async function handleGetActionKnowledge(args: GetOneActionKnowledgeArgs) {
-  try {
-    const actionId = args.actionId;
-
-    if (!isActionAllowed(actionId, ONE_ACTION_IDS)) {
-      throw new McpError(
-        ErrorCode.InvalidRequest,
-        `Action "${actionId}" is not in the allowed action list`
-      );
-    }
-
-    if (!ONE_CONNECTION_KEYS.includes("*")) {
-      const connectedPlatforms = oneClient.getUserConnections().map(c => c.platform);
-      if (!connectedPlatforms.includes(args.platform)) {
-        throw new McpError(
-          ErrorCode.InvalidRequest,
-          `Platform "${args.platform}" has no allowed connections`
-        );
-      }
-    }
-
-    if (ONE_KNOWLEDGE_AGENT) {
-      // Knowledge/code-gen mode returns the full document: the appended
-      // Integration Code Guide tells the agent to reproduce the complete
-      // input and output structure, which the digest would defer. Digesting
-      // is for the execute flow below, where the agent only needs to build
-      // one request.
-      const details = await oneClient.getActionDetails(actionId);
-      const knowledgeWithGuide = buildKnowledgeModeGuidance(
-        details,
-        args.platform,
-        oneClient.getBaseUrl()
-      );
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: knowledgeWithGuide,
-          },
-        ],
-      };
-    }
-
-    const { knowledge, method } = await oneClient.getActionKnowledge(actionId);
-    const response = buildKnowledgeResponse(knowledge, method, args.platform, actionId, {
-      section: args.section,
-      full: args.full,
-      toc: args.toc,
+    const text = await findOneActions(args, oneClient, {
+      knowledgeAgent: ONE_KNOWLEDGE_AGENT,
+      permissions: ONE_PERMISSIONS,
+      actionIds: ONE_ACTION_IDS,
+      platforms: ONE_CONNECTION_KEYS.includes("*")
+        ? null
+        : oneClient.getUserConnections().map(c => c.platform),
+      baseUrl: oneClient.getBaseUrl(),
     });
 
-    // Execute mode returns the documentation alone: execute_one_action builds
-    // the passthrough request itself, so the raw-HTTP guidance code-gen mode
-    // appends (base URL, x-one-* headers, env var names) would only add tokens.
     return {
       content: [
         {
           type: "text" as const,
-          text: response.text,
+          text,
         },
       ],
-      structuredContent: response.structured,
     };
   } catch (error) {
+    // A call the agent has to fix goes back to it as a tool error it can read
+    // and correct, rather than a protocol failure.
+    if (error instanceof FindArgsError) {
+      return {
+        content: [{ type: "text" as const, text: error.message }],
+        isError: true,
+      };
+    }
     throw new McpError(
       ErrorCode.InternalError,
-      `Failed to retrieve action knowledge: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Failed to find actions: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
 }

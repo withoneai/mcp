@@ -7,7 +7,7 @@
  * @author One
  */
 
-import { PaginatedResponse, PermissionLevel, ConnectionAccess, ResolvedAllowedAction, ActionDetails, Connection, ConnectionDefinition, ListIntegrationsResponse } from './types.js';
+import { PaginatedResponse, PermissionLevel, ConnectionAccess, ResolvedAllowedAction, Connection, ConnectionDefinition, ListIntegrationsResponse } from './types.js';
 import axios, { AxiosResponse } from 'axios';
 import {
   parseSections,
@@ -19,6 +19,7 @@ import {
   parseSectionFlag,
   collapseSections,
   omittedSections,
+  KnowledgeFollowUp,
 } from './knowledge-sections.js';
 
 /** A knowledge tool response: the text an agent reads plus a machine-readable
@@ -109,14 +110,17 @@ export async function fetchPaginatedData<T>(
  * @param method - The action's HTTP method (echoed into the envelope)
  * @param platform - The kebab-case platform identifier (for the load-more hint)
  * @param actionId - The action ID (for the load-more hint)
- * @param options - `section`/`toc`/`full` select what to return
+ * @param options - `section`/`toc`/`full` select what to return; `followUp`
+ *   names the tool a digest's notes send the agent to, `find_one_actions` unless
+ *   set (the engine's `get_one_action_knowledge` wording is kept for its other
+ *   surfaces)
  */
 export function buildKnowledgeResponse(
   knowledge: string,
   method: string,
   platform: string,
   actionId: string,
-  options: { section?: string; full?: boolean; toc?: boolean } = {}
+  options: { section?: string; full?: boolean; toc?: boolean; followUp?: KnowledgeFollowUp } = {}
 ): KnowledgeResponse {
   const doc = parseSections(knowledge);
   const fullToc = flattenSections(doc.sections).map((s) => ({
@@ -185,13 +189,14 @@ export function buildKnowledgeResponse(
     return { text: knowledge, structured: { title: doc.title, method, truncated: false } };
   }
 
-  const digest = buildDigest(doc);
+  const followUp = options.followUp ?? 'findTool';
+  const digest = buildDigest(doc, { load: { followUp, platform, actionId } });
   if (!digest.truncated) {
     return { text: knowledge, structured: { title: doc.title, method, truncated: false } };
   }
 
   const toc = omittedSections(digest);
-  const text = [renderDigestBanner(digest), digest.markdown, renderDigestNotice(digest, platform, actionId)]
+  const text = [renderDigestBanner(digest), digest.markdown, renderDigestNotice(digest, platform, actionId, followUp)]
     .filter(Boolean)
     .join('\n\n');
   return {
@@ -220,100 +225,6 @@ export function platformEnvSegment(platform: string): string {
     .split(/[^A-Z0-9]+/)
     .filter(Boolean)
     .join("_");
-}
-
-const CUSTOM_ACTION_NOTE = `
-- This is a custom action: ALSO include "connectionKey" (the same value as the
-  x-one-connection-key header) as a field in the JSON body for non-GET requests.`;
-
-/**
- * Builds the knowledge-mode response: the action's knowledge document followed
- * by the Integration Code Guide for writing application code against the One
- * Passthrough API (env vars, backend-only placement, headers, deployment).
- * Used only when ONE_KNOWLEDGE_AGENT is enabled; normal mode keeps
- * buildActionKnowledgeWithGuidance.
- * @param details - Full action details from the knowledge endpoint
- * @param platform - The kebab-case platform identifier from the tool args
- * @param baseUrl - The One API base URL (e.g. https://api.withone.ai)
- * @returns The knowledge text with the appended Integration Code Guide
- */
-export function buildKnowledgeModeGuidance(
-  details: ActionDetails,
-  platform: string,
-  baseUrl: string
-): string {
-  const apiBase = baseUrl.replace(/\/$/, "");
-  const knowledge = details.knowledge || "No knowledge was found";
-  const method = (details.method || "").toUpperCase();
-  const path = details.path.startsWith("/") ? details.path : `/${details.path}`;
-  const connEnv = `ONE_${platformEnvSegment(platform)}_CONNECTION_KEY`;
-  const customNote = details.tags?.includes("custom") ? CUSTOM_ACTION_NOTE : "";
-
-  return `${knowledge}
-
-================================================================
-INTEGRATION CODE GUIDE — using this action in an application
-================================================================
-You are in knowledge mode: this action cannot be executed here. Use this
-guide to write integration code in the user's project.
-
-## 1. Where this code must live
-Server-side only — an API route, edge function, or backend handler
-(e.g. Supabase Edge Function, Next.js route handler, Express route).
-NEVER call this API from browser/client code and NEVER hardcode secret
-values in source — read them from environment variables.
-
-## 2. The request
-All calls go through the One Passthrough API. Do NOT call the third-party
-API URL from the documentation above directly.
-
-URL:    ${apiBase}/v1/passthrough${path}
-Method: ${method}
-Headers:
-- x-one-secret: the value of the ONE_SECRET env var
-- x-one-connection-key: the value of the ${connEnv} env var
-- x-one-action-id: ${details._id}
-- Content-Type: application/json
-
-The URL is the One base plus the action path ONLY:
-✅ ${apiBase}/v1/passthrough${path}
-❌ ${apiBase}/v1/passthrough/https://some-vendor-api.com${path}
-
-## 3. Parameter placement
-Per the documentation above:
-- Path variables (placeholders like {{userId}} in the path) → substitute
-  real values into the URL path; never send them in the body.
-- Query parameters → the URL query string, not the body.
-- Body fields → the JSON request body (POST/PUT/PATCH only).${customNote}
-
-## 4. Environment variables & deployment
-The code will not work until the user sets these in their hosting
-platform's secrets manager (Supabase secrets, Vercel/Netlify environment
-settings, or the project's env settings — never committed to code):
-- ONE_SECRET → their One API key (from the One dashboard)
-- ${connEnv} → the connection key for ${platform} (from list_one_integrations)
-When you deliver the code, explicitly tell the user to set both.
-
-## 5. Code generation rules
-- Use TypeScript unless the user asked for another language.
-- Include the complete input/output structure from the documentation
-  above (required/optional fields, types) in the implementation.
-- Handle errors: on a non-2xx response, read the response body and
-  surface a useful message.
-- Minimal example:
-
-\`\`\`typescript
-const response = await fetch("${apiBase}/v1/passthrough${path}", {
-  method: "${method}",
-  headers: {
-    "x-one-secret": process.env.ONE_SECRET,
-    "x-one-connection-key": process.env.${connEnv},
-    "x-one-action-id": "${details._id}",
-    "Content-Type": "application/json",
-  },
-  // body: JSON.stringify(...) — only for non-GET requests
-});
-\`\`\``;
 }
 
 /** Folds a path variable name for loose matching: `ticket_id`, `ticketId`, `TICKET-ID` all fold to `ticketid`. */
@@ -359,15 +270,6 @@ const PERMISSION_METHODS: Record<PermissionLevel, string[] | null> = {
   write: ["GET", "POST", "PUT", "PATCH"],
   admin: null,
 };
-
-export function filterByPermissions<T extends { method: string }>(
-  actions: T[],
-  permissions: PermissionLevel
-): T[] {
-  const allowed = PERMISSION_METHODS[permissions];
-  if (allowed === null) return actions;
-  return actions.filter((a) => allowed.includes(a.method.toUpperCase()));
-}
 
 export function isMethodAllowed(
   method: string,

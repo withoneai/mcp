@@ -48,18 +48,6 @@ export interface Connection {
 }
 
 /**
- * Available action from search endpoint (uses systemId)
- */
-export interface AvailableAction {
-  systemId: string;
-  title: string;
-  tags?: string[];
-  knowledge?: string;
-  path: string;
-  method: string;
-}
-
-/**
  * Action details from knowledge endpoint (uses _id)
  */
 export interface ActionDetails {
@@ -107,34 +95,6 @@ export interface ResolvedAllowedAction extends GrantedAction {
  * Arguments for list_one_integrations tool
  */
 export interface ListOneIntegrationsArgs { }
-
-/**
- * Arguments for search_one_platform_actions tool
- */
-export interface SearchOnePlatformActionsArgs {
-  platform: string;
-  query: string;
-  agentType?: "execute" | "knowledge";
-}
-
-/**
- * Arguments for get_one_action_knowledge tool
- */
-export interface GetOneActionKnowledgeArgs {
-  actionId: string;
-  platform: string;
-  section?: string;
-  full?: boolean;
-  toc?: boolean;
-}
-
-/**
- * Response for get_one_action_knowledge tool
- */
-export interface GetOneActionKnowledgeResponse {
-  knowledge: string;
-  method: string;
-}
 
 /**
  * Action object structure for create_one_request tool
@@ -215,22 +175,54 @@ export interface ListIntegrationsResponse {
   };
 }
 
-/**
- * Structured response for search_one_platform_actions tool
- */
-export interface SearchActionsResponse {
-  [x: string]: unknown;
-  actions: Array<{
-    actionId: string;
-    title: string;
-    method: string;
-    path: string;
-  }>;
-  metadata: {
-    platform: string;
-    query: string;
-    count: number;
-  };
+export type PermissionLevel = "read" | "write" | "admin";
+
+/** One operation an agent wants done on one platform. */
+export interface FindIntent {
+  platform: string;
+  intent: string;
 }
 
-export type PermissionLevel = "read" | "write" | "admin";
+/** An action in a find answer, as core returns it. */
+export interface FoundAction {
+  systemId: string;
+  title: string;
+  key: string;
+  method: string;
+  path: string;
+  tags: string[];
+  knowledge?: string;
+}
+
+/** How core reached an intent's answer. */
+export type FindSelector = 'model' | 'search_order' | 'none_fit';
+
+/** Core's answer for one intent of `POST /v1/available-actions/find`. */
+export interface FoundActions extends FindIntent {
+  /** The actions to use: the pick, and any needed beside it. */
+  selected: FoundAction[];
+  /** Needed beside the pick, but left undocumented. */
+  alsoSelected?: FoundAction[];
+  /** A substitute for the pick when the model was unsure: one or the other, never both. */
+  runnerUp?: FoundAction;
+  /** Other candidates, undocumented. */
+  alternatives: FoundAction[];
+  selector: FindSelector;
+  confidence?: number;
+}
+
+/** One `load` entry of the find tool. */
+export interface FindLoadArgs {
+  action_id: string;
+  section?: string;
+  full?: boolean;
+  toc?: boolean;
+}
+
+/** Arguments of the `find_one_actions` tool: `requests` or `load`, never both. */
+export interface FindOneActionsArgs {
+  requests?: FindIntent[];
+  task?: string;
+  load?: FindLoadArgs[];
+  ai_model?: string;
+}
