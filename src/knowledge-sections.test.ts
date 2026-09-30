@@ -272,6 +272,35 @@ describe('renderDigestNotice', () => {
     assert.ok(!notice.includes('Success Response (201 Created)'), 'children of an omitted parent are implied');
     assert.ok(notice.includes('Response Fields'));
   });
+
+  // Byte-for-byte the Rust engine's `KnowledgeFollowUp::FindTool` wording, so
+  // an agent reads the same call from the remote MCP and from this package.
+  it('names find_one_actions with the exact load call for the find tool', () => {
+    const d = buildDigest(parseSections(GITHUB), {
+      wholeDocThreshold: 0,
+      budget: 0,
+      load: { followUp: 'findTool', platform: 'github', actionId: 'conn_mod_def::X::Y' },
+    });
+    const notice = renderDigestNotice(d, 'github', 'conn_mod_def::X::Y', 'findTool');
+    const [, , load, whole] = notice.split('\n');
+
+    assert.match(load, /^Load one or more by calling find_one_actions with load: \[\{ action_id: "conn_mod_def::X::Y", section: "[^"]+" \}\] \(comma-separate several\)\.$/);
+    assert.equal(whole, 'Load the whole document with full: true in place of section.');
+    assert.ok(!notice.includes('get_one_action_knowledge'));
+  });
+
+  it('names find_one_actions in a cut section\'s note for the find tool', () => {
+    const body = `# Upload\n\n## Request Body\n\n${'field: value\n'.repeat(1_000)}\n## Response Fields\n\nid`;
+    const d = buildDigest(parseSections(body), {
+      wholeDocThreshold: 0,
+      load: { followUp: 'findTool', platform: 'gmail', actionId: 'gmail::upload' },
+    });
+
+    assert.ok(
+      d.markdown.includes('more chars. Load the full section by calling find_one_actions with load: [{ action_id: "gmail::upload", section: "request-body" }]]_'),
+      d.markdown.slice(-300)
+    );
+  });
 });
 
 describe('renderDigestBanner', () => {

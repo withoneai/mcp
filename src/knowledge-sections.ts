@@ -68,7 +68,32 @@ export interface KnowledgeDigest {
   omittedChars: number;
 }
 
+/**
+ * Where a digest's notes send the reader for what they left out, worded as the
+ * exact call on the surface the reader has: `get_one_action_knowledge` again,
+ * or `find_one_actions` with `load`. Kept byte-for-byte with the Rust engine's
+ * `KnowledgeFollowUp` (`Knowledge`, `FindTool`).
+ */
+export type KnowledgeFollowUp = 'knowledge' | 'findTool';
+
+/** The surface a digest's notes name, for the action they belong to. */
+export interface SectionLoad {
+  followUp: KnowledgeFollowUp;
+  platform: string;
+  actionId: string;
+}
+
+/** How to load section `id` in full, closing a cut section. */
+function loadSection(load: SectionLoad | undefined, id: string): string {
+  if (load?.followUp === 'findTool') {
+    return `calling find_one_actions with load: [{ action_id: "${load.actionId}", section: "${id}" }]`;
+  }
+  return `calling get_one_action_knowledge again with section: "${id}"`;
+}
+
 export interface DigestOptions {
+  /** Where the digest's notes send the reader; `get_one_action_knowledge` when unset. */
+  load?: SectionLoad;
   /** Documents at or below this size are returned whole. */
   wholeDocThreshold?: number;
   /** Target size for the digest markdown (essential sections may exceed it). */
@@ -286,13 +311,13 @@ interface Decision {
   render: string;
 }
 
-function truncateText(text: string, cap: number, id: string): string {
+function truncateText(text: string, cap: number, id: string, load?: SectionLoad): string {
   const cut = text.slice(0, cap);
   // Back up to a line boundary so we never split a table row or code fence mid-way.
   const nl = cut.lastIndexOf('\n');
   const head = nl > cap * 0.5 ? cut.slice(0, nl) : cut;
   const remaining = text.length - head.length;
-  return `${head}\n\n_[truncated — ${remaining.toLocaleString('en-US')} more chars. Load the full section by calling get_one_action_knowledge again with section: "${id}"]_`;
+  return `${head}\n\n_[truncated — ${remaining.toLocaleString('en-US')} more chars. Load the full section by ${loadSection(load, id)}]_`;
 }
 
 /**
@@ -334,7 +359,7 @@ export function buildDigest(doc: ParsedKnowledge, opts: DigestOptions = {}): Kno
       if (node.tier === 'essential' || (node.level >= 3 && hasEssentialDescendant(node))) {
         const own = node.text;
         if (own.length > cap) {
-          const render = truncateText(own, cap, node.id);
+          const render = truncateText(own, cap, node.id, opts.load);
           decisions.set(node.id, { node, included: 'partial', render });
           used += render.length;
         } else {
@@ -497,7 +522,8 @@ export function omittedSections(
 export function renderDigestNotice(
   digest: KnowledgeDigest,
   platform: string,
-  actionId: string
+  actionId: string,
+  followUp: KnowledgeFollowUp = 'knowledge'
 ): string {
   if (!digest.truncated) return '';
   // List only the top-most omitted sections: in document order the nearest
@@ -528,8 +554,15 @@ export function renderDigestNotice(
   return [
     '---',
     `**This is a digest, not the full document.** ${topMost.length} section${topMost.length === 1 ? '' : 's'} omitted (${digest.omittedChars.toLocaleString('en-US')} chars): ${nameList}.`,
-    `Load one or more by calling get_one_action_knowledge again for ${platform} / ${actionId} with section: "${topMost[0]?.heading ?? 'Response'}" (comma-separate several).`,
-    `Load the whole document with full: true.`,
+    ...(followUp === 'findTool'
+      ? [
+          `Load one or more by calling find_one_actions with load: [{ action_id: "${actionId}", section: "${topMost[0]?.heading ?? 'Response'}" }] (comma-separate several).`,
+          `Load the whole document with full: true in place of section.`,
+        ]
+      : [
+          `Load one or more by calling get_one_action_knowledge again for ${platform} / ${actionId} with section: "${topMost[0]?.heading ?? 'Response'}" (comma-separate several).`,
+          `Load the whole document with full: true.`,
+        ]),
   ].join('\n');
 }
 

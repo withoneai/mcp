@@ -20,7 +20,7 @@
   <a href="https://npmjs.com/package/@withone/mcp"><img src="https://img.shields.io/npm/v/%40withone%2Fmcp" alt="npm version"></a>
 </p>
 
-Connect your AI agents to 700+ apps through a single [MCP](https://modelcontextprotocol.io) server. Search for actions, read documentation, and execute API calls across platforms, without having to manage OAuth tokens or API keys.
+Connect your AI agents to 700+ apps through a single [MCP](https://modelcontextprotocol.io) server. Find the actions a task needs with their documentation, and execute API calls across platforms, without having to manage OAuth tokens or API keys.
 
 ```bash
 npm install -g @withone/cli
@@ -34,7 +34,7 @@ That's it. The [One CLI](https://www.npmjs.com/package/@withone/cli) will prompt
 - **700+ platforms.** Gmail, Slack, Shopify, HubSpot, Stripe, Linear, QuickBooks, and [more](https://app.withone.ai/tools).
 - **Natural language execution.** "read my last gmail email", "send a message to #general on Slack"
 - **Code generation.** "build a form to send emails using Gmail", "create a dashboard that lists my Linear projects"
-- **No tool bloat.** Only 4 tools exposed regardless of how many platforms or actions you connect. Actions are search-based, so your agent's context window stays clean.
+- **No tool bloat.** Only 3 tools exposed regardless of how many platforms or actions you connect. One call finds every action a task needs, across platforms, with its documentation, so your agent's context window stays clean.
 - **Fine-grained access control.** Restrict which actions, connections, and permission levels (read, write, admin) your agent has access to.
 - **Secure by default.** All requests proxied through One, secrets automatically redacted, no platform API keys to manage.
 
@@ -56,14 +56,19 @@ That's it. The [One CLI](https://www.npmjs.com/package/@withone/cli) will prompt
 
 ## Tools
 
-The server exposes four MCP tools:
+The server exposes three MCP tools:
 
 | Tool | Description |
 |------|-------------|
 | `list_one_integrations` | List available platforms and active connections, each with the `access` it confers (full, methods, or specific actions) |
-| `search_one_platform_actions` | Search for actions on a specific platform |
-| `get_one_action_knowledge` | Get detailed documentation for an action |
+| `find_one_actions` | Find the action for every operation a task needs, across platforms, with its documentation, in one call; `load` fetches more of a document or an alternative's |
 | `execute_one_action` | Execute an API action on a connected platform |
+
+### Finding actions
+
+`find_one_actions` takes one `requests` entry per operation, each a kebab-case `platform` and a short `intent` naming the operation alone (`"send a message to a channel"`, not the message). An optional `task` describes the whole job in general terms, which helps choose between similar actions. For each intent, One's decision model picks the action to use; the answer documents it, sets apart a substitute when the model was unsure, and lists a few alternatives. Large documents come back as a digest; call `find_one_actions` again with `load: [{ action_id, section }]` for a section it left out, `full: true` for the whole document, or `toc: true` for its table of contents. `ONE_ACTION_IDS`, `ONE_PERMISSIONS` and `ONE_CONNECTION_KEYS` apply to every answer: an action they refuse is never offered, and when they refuse the model's pick, the next allowed candidate takes its place.
+
+Upgrading from 1.x: `search_one_platform_actions` and `get_one_action_knowledge` are removed. `find_one_actions` replaces both.
 
 ## Remote MCP Server
 
@@ -82,7 +87,7 @@ Add it to your client's MCP configuration. The endpoint speaks the Streamable HT
 }
 ```
 
-Some clients omit `type` and take the URL alone; UI-based clients (custom connectors) just need the URL itself. On first connect, your client opens a browser to authenticate and authorize with One. After that, the same four tools are available.
+Some clients omit `type` and take the URL alone; UI-based clients (custom connectors) just need the URL itself. On first connect, your client opens a browser to authenticate and authorize with One. After that, the same three tools are available.
 
 One-click install:
 
@@ -139,7 +144,7 @@ ONE_KNOWLEDGE_AGENT=true
 | `ONE_PERMISSIONS` | `read` \| `write` \| `admin` | `admin` | Filter actions by HTTP method. `read` = GET only, `write` = GET/POST/PUT/PATCH, `admin` = all methods |
 | `ONE_CONNECTION_KEYS` | `*` or comma-separated keys | `*` | Restrict visible connections and platforms to specific connection keys |
 | `ONE_ACTION_IDS` | `*` or comma-separated IDs | `*` | Restrict visible and executable actions to specific action IDs |
-| `ONE_KNOWLEDGE_AGENT` | `true` \| `false` | `false` | Remove the `execute_one_action` tool entirely, forcing knowledge-only mode. `get_one_action_knowledge` responses additionally include an Integration Code Guide (passthrough URL, `x-one-*` headers, `ONE_SECRET` / `ONE_{PLATFORM}_CONNECTION_KEY` env vars, backend-only placement) for writing application code |
+| `ONE_KNOWLEDGE_AGENT` | `true` \| `false` | `false` | Remove the `execute_one_action` tool entirely, forcing knowledge-only mode. `find_one_actions` then returns each chosen action's whole document with how to call it from code, and an Integration Code Guide (passthrough URL, `x-one-*` headers, `ONE_SECRET` / `ONE_{PLATFORM}_CONNECTION_KEY` env vars, backend-only placement) for writing application code |
 
 All defaults preserve current behavior. If no access control env vars are set, the server starts with full access and all tools available.
 

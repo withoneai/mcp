@@ -29,7 +29,8 @@ describe('buildKnowledgeResponse', () => {
     assert.ok((r.structured.omitted as number) >= 1);
     assert.ok(Array.isArray(r.structured.sections) && (r.structured.sections as unknown[]).length >= 1);
     assert.ok(r.text.includes('**Digest.**'));
-    assert.ok(r.text.includes('get_one_action_knowledge'));
+    assert.ok(r.text.includes('find_one_actions with load: [{ action_id: "act_1"'));
+    assert.ok(!r.text.includes('get_one_action_knowledge'), 'this server has no knowledge tool to send the agent to');
     // A deferred body is not inlined into the digest text.
     assert.ok(!r.text.includes('Response Fields field 100'));
     // No CLI-flag phrasing leaks into agent-visible text.
