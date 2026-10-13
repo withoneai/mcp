@@ -187,6 +187,7 @@ async function handleFindOneActions(args: FindOneActionsArgs) {
         ? null
         : oneClient.getUserConnections().map(c => c.platform),
       baseUrl: oneClient.getBaseUrl(),
+      client: server.server.getClientVersion(),
     });
 
     return {

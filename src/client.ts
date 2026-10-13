@@ -20,6 +20,7 @@ import {
   FoundActions,
   ResolvedAllowedAction
 } from './types.js';
+import { callerHeaders, FindCaller } from './caller.js';
 import { fetchPaginatedData, replacePathVariables } from './helpers.js';
 
 /** Header names that only the server may set on an outgoing request. */
@@ -235,15 +236,22 @@ export class OneClient {
    * @param task - The whole task in one line, which helps break ties
    * @param knowledgeAgent - Search the catalog for writing integration code
    *   rather than the one for executing actions
+   * @param caller - The MCP client that connected and the model it named,
+   *   sent so One records who asked
    * @returns One answer per intent, in the order asked
    * @throws {Error} Naming core's reason when it refuses the request
    */
-  async findActions(requests: FindIntent[], task: string | undefined, knowledgeAgent: boolean): Promise<FoundActions[]> {
+  async findActions(
+    requests: FindIntent[],
+    task: string | undefined,
+    knowledgeAgent: boolean,
+    caller: FindCaller = {}
+  ): Promise<FoundActions[]> {
     try {
       const response: AxiosResponse<FoundActions[]> = await axios.post(
         `${this.baseUrl}/v1/available-actions/find`,
         { requests, ...(task ? { task } : {}), knowledgeAgent },
-        { headers: this.generateHeaders() }
+        { headers: { ...this.generateHeaders(), ...callerHeaders(caller) } }
       );
       return response.data || [];
     } catch (error) {

@@ -13,6 +13,7 @@
  * @author One
  */
 
+import { FindCaller } from './caller.js';
 import { buildKnowledgeResponse, isActionAllowed, isMethodAllowed, platformEnvSegment } from './helpers.js';
 import {
   ActionDetails,
@@ -49,7 +50,7 @@ export const FIND_ARGS_ERROR =
 
 /** What the tool needs from the One API. */
 export interface FindDeps {
-  findActions(requests: FindIntent[], task: string | undefined, knowledgeAgent: boolean): Promise<FoundActions[]>;
+  findActions(requests: FindIntent[], task: string | undefined, knowledgeAgent: boolean, caller?: FindCaller): Promise<FoundActions[]>;
   getActionDetails(actionId: string): Promise<ActionDetails>;
 }
 
@@ -64,6 +65,8 @@ export interface FindSettings {
   platforms: string[] | null;
   /** The One API base URL, for the passthrough URL in knowledge mode. */
   baseUrl: string;
+  /** The MCP client that connected, as its `clientInfo` named it. */
+  client?: { name: string; version?: string };
 }
 
 /** A call the agent has to fix, reported to it rather than failing the server. */
@@ -76,7 +79,7 @@ export class FindArgsError extends Error {}
  */
 export async function findOneActions(args: FindOneActionsArgs, deps: FindDeps, settings: FindSettings): Promise<string> {
   if (args.requests && !args.load) {
-    return find(args.requests, args.task, deps, settings);
+    return find(args.requests, args.task, deps, settings, { client: settings.client, model: args.ai_model });
   }
   if (args.load && !args.requests && args.task === undefined) {
     return load(args.load, deps, settings);
@@ -226,13 +229,19 @@ interface Planned {
   runnerUpDocumented: boolean;
 }
 
-async function find(requests: FindIntent[], task: string | undefined, deps: FindDeps, settings: FindSettings): Promise<string> {
+async function find(
+  requests: FindIntent[],
+  task: string | undefined,
+  deps: FindDeps,
+  settings: FindSettings,
+  caller: FindCaller
+): Promise<string> {
   if (requests.length === 0 || requests.length > FIND_MAX_INTENTS) {
     throw new FindArgsError(`Send between 1 and ${FIND_MAX_INTENTS} requests.`);
   }
 
   const reachable = requests.filter((r) => reaches(settings, r.platform));
-  const answers = reachable.length > 0 ? await deps.findActions(reachable, task, settings.knowledgeAgent) : [];
+  const answers = reachable.length > 0 ? await deps.findActions(reachable, task, settings.knowledgeAgent, caller) : [];
   let next = 0;
 
   const plans: Planned[] = requests.map((intent) => {

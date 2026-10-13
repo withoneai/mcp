@@ -31,7 +31,7 @@ export const findOneActionsInputSchema = {
         full: z.boolean().optional().describe("Load the whole document. Ignored when `section` is set."),
         toc: z.boolean().optional().describe("Load only the table of contents. Ignored when `section` is set.")
     })).min(1).max(10).optional().describe("More documentation for actions already found (1 to 10): a section the digest omitted, the whole document, the table of contents, or an alternative's documentation. Use instead of `requests`."),
-    ai_model: z.string().optional().describe('The AI model you are running as (e.g. "claude-sonnet-5", "gpt-5"), which helps optimize the documentation returned. Optional.')
+    ai_model: z.string().optional().describe('The AI model you are running as (e.g. "claude-sonnet-5", "gpt-5"), recorded with this find so the account\'s usage can report which model asked. Optional.')
 };
 
 /**
