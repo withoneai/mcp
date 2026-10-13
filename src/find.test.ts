@@ -10,6 +10,7 @@ import {
   REFUSED_LOAD,
   findOneActions,
 } from './find.js';
+import type { FindCaller } from './caller.js';
 import type { ActionDetails, FindIntent, FoundAction, FoundActions } from './types.js';
 
 // Pure: core and the knowledge endpoint are stubbed, so no network is touched.
@@ -51,12 +52,18 @@ const settings = (overrides: Partial<FindSettings> = {}): FindSettings => ({
 });
 
 /** Core answering `answers` in turn, and raw knowledge per action. */
-function deps(answers: FoundActions[], knowledge: Record<string, string> = {}): FindDeps & { asked: FindIntent[][] } {
+function deps(
+  answers: FoundActions[],
+  knowledge: Record<string, string> = {}
+): FindDeps & { asked: FindIntent[][]; callers: (FindCaller | undefined)[] } {
   const asked: FindIntent[][] = [];
+  const callers: (FindCaller | undefined)[] = [];
   return {
     asked,
-    async findActions(requests) {
+    callers,
+    async findActions(requests, _task, _knowledgeAgent, caller) {
       asked.push(requests);
+      callers.push(caller);
       return answers.slice(0, requests.length);
     },
     async getActionDetails(id): Promise<ActionDetails> {
@@ -77,6 +84,18 @@ function deps(answers: FoundActions[], knowledge: Record<string, string> = {}): 
 const intent = [{ platform: 'gmail', intent: 'send an email' }];
 
 describe('find_one_actions', () => {
+  it('tells core which client and model asked', async () => {
+    const found = deps([answer()]);
+
+    await findOneActions(
+      { requests: intent, ai_model: 'claude-sonnet-5' },
+      found,
+      settings({ client: { name: 'claude-code', version: '2.4.1' } })
+    );
+
+    assert.deepEqual(found.callers, [{ client: { name: 'claude-code', version: '2.4.1' }, model: 'claude-sonnet-5' }]);
+  });
+
   it('takes requests or load, never both, never neither, and no task with a load', async () => {
     for (const args of [{}, { requests: intent, load: [{ action_id: 'a' }] }, { load: [{ action_id: 'a' }], task: 't' }]) {
       await assert.rejects(findOneActions(args, deps([answer()]), settings()), (e: Error) => e instanceof FindArgsError && e.message === FIND_ARGS_ERROR);
