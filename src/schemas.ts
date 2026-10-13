@@ -24,14 +24,14 @@ export const findOneActionsInputSchema = {
         platform: z.string().describe('The kebab-case platform identifier (e.g. "gmail", "stripe").'),
         intent: z.string().describe('The operation alone, in a few words (e.g. "send a message to a channel"), without its data: no IDs, names or message text.')
     })).min(1).max(10).optional().describe('What to do, one entry per API operation, on any platforms (1 to 10). Each is the kebab-case platform (e.g. "gmail", "hubspot") and a short intent (e.g. "send an email", "find a contact by email").'),
-    task: z.string().optional().describe('The whole task in one line, in general terms (e.g. "email a report to a contact"): what it does, without names, addresses, IDs or message text. It helps choose between similar actions. Never the chat history. Only with `requests`.'),
+    task: z.string().optional().describe('The whole task in one line, in general terms (e.g. "email a report to a contact"): what it does, without names, addresses, IDs or message text. Send it with every find: it helps tell similar actions apart. Never the chat history. Only with `requests`.'),
     load: z.array(z.object({
         action_id: z.string().describe("The actionId from a find_one_actions answer."),
         section: z.string().optional().describe('Section name(s) to load, comma-separated (e.g. "Response Fields"). Omit, with `full` and `toc` unset, for the digest. In knowledge mode every load returns the whole document, so `section` and `toc` do not narrow it.'),
         full: z.boolean().optional().describe("Load the whole document. Ignored when `section` is set."),
         toc: z.boolean().optional().describe("Load only the table of contents. Ignored when `section` is set.")
     })).min(1).max(10).optional().describe("More documentation for actions already found (1 to 10): a section the digest omitted, the whole document, the table of contents, or an alternative's documentation. Use instead of `requests`."),
-    ai_model: z.string().optional().describe('The AI model you are running as (e.g. "claude-sonnet-5", "gpt-5"), recorded with this find so the account\'s usage can report which model asked. Optional.')
+    ai_model: z.string().optional().describe('Your model name as you know it (e.g. "claude-sonnet-5", "gpt-5"), recorded with this find. Send it with every find; leave it out only if you do not know which model you are.')
 };
 
 /**
