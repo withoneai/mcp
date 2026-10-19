@@ -152,6 +152,13 @@ function status(answer: FoundActions, narrowed: Pick<Narrowed, 'replaced' | 'ref
   if (narrowed.replaced) {
     return 'The chosen action is not allowed on this server, so this is the next allowed candidate: check it fits before using it.';
   }
+  if (answer.selector === 'unknown_platform') {
+    const opening = `No active platform is named \`${answer.platform}\`.`;
+    const suggestions = answer.suggestions ?? [];
+    return suggestions.length === 0
+      ? `${opening} Check the platform name: \`list_one_integrations\` gives the exact name of each connected integration.`
+      : `${opening} Did you mean ${suggestions.map((s) => `\`${s}\``).join(', ')}? Ask again with the platform you meant.`;
+  }
   if (answer.selector === 'none_fit' || answer.selected.length === 0) {
     return answer.alternatives.length === 0
       ? 'No action fits this intent, and nothing close was found. Rephrase it, or check the platform name.'

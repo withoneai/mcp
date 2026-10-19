@@ -195,7 +195,7 @@ export interface FoundAction {
 }
 
 /** How core reached an intent's answer. */
-export type FindSelector = 'model' | 'search_order' | 'none_fit';
+export type FindSelector = 'model' | 'search_order' | 'none_fit' | 'unknown_platform';
 
 /** Core's answer for one intent of `POST /v1/available-actions/find`. */
 export interface FoundActions extends FindIntent {
@@ -209,6 +209,8 @@ export interface FoundActions extends FindIntent {
   alternatives: FoundAction[];
   selector: FindSelector;
   confidence?: number;
+  /** With `unknown_platform`: the platforms the intent may have meant, closest first. */
+  suggestions?: string[];
 }
 
 /** One `load` entry of the find tool. */
