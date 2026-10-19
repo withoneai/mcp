@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "ai.withone/mcp",
   "title": "One",
-  "description": "Find, document and execute authenticated API calls across 700+ apps via one MCP server",
-  "version": "2.2.0",
+  "description": "Find, document and execute authenticated API calls across 1000+ apps via one MCP server",
+  "version": "2.2.1",
   "websiteUrl": "https://withone.ai",
   "repository": {
     "url": "https://github.com/withoneai/mcp",
@@ -33,7 +33,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@withone/mcp",
-      "version": "2.2.0",
+      "version": "2.2.1",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"
