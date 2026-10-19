@@ -4,7 +4,7 @@ This guide is for AI agents (Cline, Claude, Cursor, and similar) setting up the 
 
 ## What this server does
 
-One connects the agent to 700+ apps (Gmail, Slack, Stripe, Shopify, HubSpot, Notion, Linear, Salesforce, QuickBooks, and more) through three tools:
+One connects the agent to 1000+ apps (Gmail, Slack, Stripe, Shopify, HubSpot, Notion, Linear, Salesforce, QuickBooks, and more) through three tools:
 
 | Tool | Purpose |
 |------|---------|

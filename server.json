@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "ai.withone/mcp",
   "title": "One",
-  "description": "Find, document and execute authenticated API calls across 700+ apps via one MCP server",
+  "description": "Find, document and execute authenticated API calls across 1000+ apps via one MCP server",
   "version": "2.2.0",
   "websiteUrl": "https://withone.ai",
   "repository": {

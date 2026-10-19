@@ -149,7 +149,7 @@ async function handleGetIntegrations(args: ListOneIntegrationsArgs) {
       .filter(action => isMethodAllowed(action.method, ONE_PERMISSIONS));
 
     // Execute mode lists only connections: every connection carries its
-    // access, and the full catalog (800+ platforms) would sit in the agent's
+    // access, and the full catalog (1000+ platforms) would sit in the agent's
     // context for the rest of the session. Knowledge/code-gen mode also lists
     // available platforms so code can target one that is not connected yet,
     // unless connection keys are scoped.
