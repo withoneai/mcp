@@ -202,6 +202,24 @@ describe('find_one_actions', () => {
     assert.ok(!text.includes(FIND_EXECUTE_HINT));
   });
 
+  it('names the platforms core suggests for a name no active platform has', async () => {
+    const unknown = (suggestions?: string[]) =>
+      answer({ platform: 'clickup', intent: 'create a task', selected: [], alternatives: [], selector: 'unknown_platform', confidence: undefined, suggestions });
+    const asked = [
+      { platform: 'clickup', intent: 'create a task' },
+      { platform: 'clickup', intent: 'create a task' },
+    ];
+    const text = await findOneActions({ requests: asked }, deps([unknown(['click-up', 'click-house']), unknown()]), settings());
+
+    assert.ok(
+      text.includes('No active platform is named `clickup`. Did you mean `click-up`, `click-house`? Ask again with the platform you meant.'),
+      text
+    );
+    assert.ok(text.includes('Check the platform name: `list_one_integrations` gives the exact name'), text);
+    assert.ok(!text.includes('No action fits'), 'an unknown platform is not read as a platform with no fitting action');
+    assert.ok(!text.includes(FIND_EXECUTE_HINT), 'nothing was documented');
+  });
+
   it('loads what each entry asked for, refusing one this server may not use in the words for a missing one', async () => {
     const text = await findOneActions(
       { load: [{ action_id: 'a', section: 'Response Fields' }, { action_id: 'missing' }, { action_id: 'b' }] },
