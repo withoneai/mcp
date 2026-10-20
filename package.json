@@ -4,7 +4,7 @@
   "description": "A Model Context Protocol Server for One",
   "type": "module",
   "bin": {
-    "mcp": "./build/index.js"
+    "mcp": "build/index.js"
   },
   "files": [
     "build"
@@ -35,7 +35,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/withoneai/mcp"
+    "url": "git+https://github.com/withoneai/mcp.git"
   },
   "mcpName": "ai.withone/mcp"
 }
