@@ -10,7 +10,7 @@ import type { ActionDetails, ExecuteOneActionArgs } from './types.js';
 // A passthrough call must never let the caller override One's own routing/auth
 // headers (the scoping bypass), and a failed call must never log the secret.
 
-const SECRET = 'sk_test_REALSECRET_abc123';
+const SECRET = 'test-one-secret-not-a-real-key';
 const ACTION = { _id: 'conn_mod_def::ALLOWED_ACTION', method: 'GET', path: '/v1/things', tags: [] } as unknown as ActionDetails;
 
 const exec = (extra: Partial<ExecuteOneActionArgs>): ExecuteOneActionArgs =>
