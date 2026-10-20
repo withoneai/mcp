@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "@vercel/mcp-adapter": "^0.9.1",
+    "@vercel/mcp-adapter": "^1.0.0",
     "axios": "^1.10.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
