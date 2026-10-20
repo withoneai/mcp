@@ -38,15 +38,31 @@ export const findOneActionsInputSchema = {
  * Schema for executing One actions
  */
 export const executeOneActionInputSchema = {
-    platform: z.string().describe("Platform name"),
-    actionId: z.string().describe("The actionId from find_one_actions"),
-    connectionKey: z.string().describe("Key of the connection to use"),
-    data: z.any().optional().describe("Request data (for POST, PUT, etc.)"),
-    pathVariables: z.record(z.union([z.string(), z.number(), z.boolean()])).optional().describe("Variables to replace in the path"),
-    queryParams: z.record(z.any()).optional().describe("Query parameters"),
-    headers: z.record(z.string()).optional().describe("Additional headers"),
-    isFormData: z.boolean().optional().describe("Whether to send data as multipart/form-data"),
-    isFormUrlEncoded: z.boolean().optional().describe("Whether to send data as application/x-www-form-urlencoded")
+    platform: z.string().describe('The kebab-case platform of the connection (e.g. "gmail"), as list_one_integrations names it.'),
+    actionId: z.string().describe("The actionId of the action to run, as returned when the action was found (or from the connection's `access` list)."),
+    connectionKey: z.string().describe("The connection key for the caller's connection (from list_one_integrations)."),
+    data: z.any().optional().describe("The request body. JSON by default; encoded as form data when isFormData or isFormUrlEncoded is set."),
+    pathVariables: z.record(z.union([z.string(), z.number(), z.boolean()])).optional().describe("Substitutions for {var} / {{var}} placeholders in the action path."),
+    queryParams: z.record(z.any()).optional().describe("Query-string parameters appended to the request."),
+    headers: z.record(z.string()).optional().describe("Extra request headers to forward to the upstream platform."),
+    isFormData: z.boolean().optional().describe("Encode the body as multipart/form-data."),
+    isFormUrlEncoded: z.boolean().optional().describe("Encode the body as application/x-www-form-urlencoded.")
+};
+
+/**
+ * Output schema for execute_one_action. `responseData` comes first so a client
+ * that cuts long output short still shows the payload.
+ */
+export const executeOneActionOutputSchema = {
+    responseData: z.any().describe("The platform's response body, whatever its status."),
+    status: z.number().describe("The platform's HTTP status. A 4xx or 5xx is the platform's answer: read `responseData` for its reason."),
+    requestConfig: z.object({
+        url: z.string(),
+        method: z.string(),
+        headers: z.record(z.string()),
+        params: z.record(z.any()).optional(),
+        data: z.any().optional()
+    }).describe("The request as sent, with the One secret redacted.")
 };
 
 /**
@@ -89,25 +105,45 @@ export const listOneIntegrationsOutputSchema = {
 };
 
 /**
+ * Hints for a tool that only reads One's own data, matching the remote MCP's:
+ * clients may run it without asking the user.
+ */
+const READ_ONLY_ANNOTATIONS = {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false
+};
+
+/**
  * Tool configuration objects for registerTool
  */
 export const listOneIntegrationsToolConfig = {
     title: "List One Integrations",
     description: "List the platforms the user has connected on One. ALWAYS call this tool first in any workflow. Each connection has the kebab-case `platform` name (e.g., 'ship-station', 'shopify') and the `key` (the connectionKey for execute_one_action) you'll need for subsequent tool calls. Each connection carries an `access` field describing what you may run on it: `full`, a set of allowed HTTP `methods`, or a specific list of `actions` (each with `actionId`, `title`, `method`). When a connection is action-scoped, its `actions` are exactly what may run, so you need not search.",
     inputSchema: listOneIntegrationsInputSchema,
-    outputSchema: listOneIntegrationsOutputSchema
+    outputSchema: listOneIntegrationsOutputSchema,
+    annotations: READ_ONLY_ANNOTATIONS
 };
 
 export const findOneActionsToolConfig = {
     title: "Find Platform Actions",
     description: "Use this to find the API actions a task needs, on any platforms, in one call: send one `requests` entry per operation (platform and a short intent) and get back, for each, the action to use with its documentation, plus a few alternatives. Large documents come back as a digest; call again with `load` for a section it omitted, the whole document, the table of contents, or an alternative's documentation. Results are limited to what this server's settings allow. Call list_one_integrations first to see the connected platforms.",
-    inputSchema: findOneActionsInputSchema
+    inputSchema: findOneActionsInputSchema,
+    annotations: READ_ONLY_ANNOTATIONS
 };
 
 export const executeOneActionToolConfig = {
     title: "Execute One Action",
     description: "Execute a One action to perform actual operations on third-party platforms. CRITICAL: Only call this when the user's intent is to EXECUTE an action (e.g., 'read my last Gmail email', 'fetch 5 contacts from HubSpot', 'create a task in Asana'). DO NOT call this when the user wants to BUILD or CREATE code/forms/applications - in those cases, stop after find_one_actions and provide implementation guidance instead. REQUIRED WORKFLOW: Must call find_one_actions first, which returns the action's documentation. If uncertain about execution intent or parameters, ask for confirmation before proceeding.",
-    inputSchema: executeOneActionInputSchema
+    inputSchema: executeOneActionInputSchema,
+    outputSchema: executeOneActionOutputSchema,
+    annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true
+    }
 };
 
 /**

@@ -4,12 +4,12 @@ import assert from 'node:assert/strict';
 import {
   FIND_ARGS_ERROR,
   FIND_EXECUTE_HINT,
-  FindArgsError,
   FindDeps,
   FindSettings,
   REFUSED_LOAD,
   findOneActions,
 } from './find.js';
+import { ToolError } from './tool-error.js';
 import type { FindCaller } from './caller.js';
 import type { ActionDetails, FindIntent, FoundAction, FoundActions } from './types.js';
 
@@ -98,7 +98,7 @@ describe('find_one_actions', () => {
 
   it('takes requests or load, never both, never neither, and no task with a load', async () => {
     for (const args of [{}, { requests: intent, load: [{ action_id: 'a' }] }, { load: [{ action_id: 'a' }], task: 't' }]) {
-      await assert.rejects(findOneActions(args, deps([answer()]), settings()), (e: Error) => e instanceof FindArgsError && e.message === FIND_ARGS_ERROR);
+      await assert.rejects(findOneActions(args, deps([answer()]), settings()), (e: Error) => e instanceof ToolError &&e.message === FIND_ARGS_ERROR);
     }
   });
 

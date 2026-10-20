@@ -147,8 +147,12 @@ export interface SanitizedRequestConfig {
  * Response from executePassthroughRequest
  */
 export interface ExecutePassthroughResponse {
-  requestConfig: SanitizedRequestConfig;
+  [x: string]: unknown;
+  /** First, so a client that cuts long output short still shows the payload. */
   responseData: unknown;
+  /** The platform's HTTP status; a 4xx or 5xx is the platform's answer, not a failed tool call. */
+  status: number;
+  requestConfig: SanitizedRequestConfig;
 }
 
 /**

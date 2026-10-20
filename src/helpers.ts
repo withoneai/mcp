@@ -9,6 +9,7 @@
 
 import { PaginatedResponse, PermissionLevel, ConnectionAccess, ResolvedAllowedAction, Connection, ConnectionDefinition, ListIntegrationsResponse } from './types.js';
 import axios, { AxiosResponse } from 'axios';
+import { ToolError } from './tool-error.js';
 import {
   parseSections,
   buildDigest,
@@ -254,7 +255,7 @@ export function replacePathVariables(path: string, variables: Record<string, str
     const name = variable.trim();
     const value = name in (variables ?? {}) ? variables[name] : folded.get(foldVariableName(name));
     if (value === undefined || value === null || value === '') {
-      throw new Error(
+      throw new ToolError(
         `Missing value for path variable: ${name}. This action's path is ${path}; pass pathVariables with: ${[...new Set(expected)].join(', ')}.`
       );
     }

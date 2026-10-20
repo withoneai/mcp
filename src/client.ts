@@ -22,9 +22,21 @@ import {
 } from './types.js';
 import { callerHeaders, FindCaller } from './caller.js';
 import { fetchPaginatedData, replacePathVariables } from './helpers.js';
+import { ToolError, oneApiError, oneRefusal } from './tool-error.js';
 
 /** Header names that only the server may set on an outgoing request. */
 const RESERVED_HEADER_PREFIX = 'x-one-';
+
+/** The prefix One renames every upstream response header to, so its presence marks a response the platform gave. */
+const PLATFORM_HEADER_PREFIX = 'x-passthrough-';
+
+/**
+ * Whether a passthrough response came from the platform rather than from One
+ * refusing the call before it reached the platform.
+ */
+export function answeredByPlatform(headers: Record<string, unknown>): boolean {
+  return Object.keys(headers).some((name) => name.toLowerCase().startsWith(PLATFORM_HEADER_PREFIX));
+}
 
 /**
  * Drops any caller-supplied header that One itself controls (`x-one-secret`,
@@ -239,7 +251,7 @@ export class OneClient {
    * @param caller - The MCP client that connected and the model it named,
    *   sent so One records who asked
    * @returns One answer per intent, in the order asked
-   * @throws {Error} Naming core's reason when it refuses the request
+   * @throws {ToolError} Naming core's reason when it refuses the request
    */
   async findActions(
     requests: FindIntent[],
@@ -256,11 +268,7 @@ export class OneClient {
       return response.data || [];
     } catch (error) {
       console.error("Error finding actions:", describeError(error));
-      if (axios.isAxiosError(error)) {
-        const reason = (error.response?.data as { message?: string } | undefined)?.message;
-        throw new Error(`Failed to find actions: ${reason ?? `${error.response?.status} ${error.response?.statusText}`}`);
-      }
-      throw new Error("Failed to find actions");
+      throw oneApiError("Failed to find actions", error);
     }
   }
 
@@ -268,11 +276,11 @@ export class OneClient {
    * Gets full action details by ID
    * @param actionId - The action ID to get details for
    * @returns The full action object
-   * @throws {Error} If action ID is not provided or API request fails
+   * @throws {ToolError} If the action ID is missing or unknown, or the API request fails
    */
   async getActionDetails(actionId: string): Promise<ActionDetails> {
     if (!actionId?.trim()) {
-      throw new Error("Action ID is required");
+      throw new ToolError("An actionId is required. Use one returned by find_one_actions.");
     }
 
     const cached = this.actionDetailsCache.get(actionId);
@@ -295,7 +303,7 @@ export class OneClient {
       const actions = response.data?.rows || [];
 
       if (actions.length === 0) {
-        throw new Error(`Action with ID ${actionId} not found`);
+        throw new ToolError(`Action ${actionId} not found. Use an actionId returned by find_one_actions.`);
       }
 
       this.actionDetailsCache.set(actionId, {
@@ -304,11 +312,11 @@ export class OneClient {
       });
       return actions[0];
     } catch (error) {
-      console.error("Error fetching action details:", describeError(error));
-      if (axios.isAxiosError(error)) {
-        throw new Error(`Failed to fetch action details: ${error.response?.status} ${error.response?.statusText}`);
+      if (error instanceof ToolError) {
+        throw error;
       }
-      throw new Error("Failed to fetch action details");
+      console.error("Error fetching action details:", describeError(error));
+      throw oneApiError("Failed to fetch action details", error);
     }
   }
 
@@ -357,8 +365,8 @@ export class OneClient {
   /**
    * Executes a passthrough request to a third-party API through One
    * @param args - The execution arguments containing all request details
-   * @returns Object containing sanitized request config and response data
-   * @throws {Error} If the request fails
+   * @returns The platform's response, whatever its status, with the sanitized request config
+   * @throws {ToolError} If One refuses the call or cannot be reached
    */
   async executePassthroughRequest(args: ExecuteOneActionArgs, preloadedAction?: ActionDetails): Promise<ExecutePassthroughResponse> {
     const {
@@ -468,20 +476,26 @@ export class OneClient {
       }
     };
 
+    let response: AxiosResponse;
     try {
-      const response: AxiosResponse = await axios(requestConfig);
-
-      return {
-        requestConfig: sanitizedConfig,
-        responseData: response.data
-      };
+      // Every status resolves: a platform's 4xx or 5xx is its answer, which
+      // the agent reads; only One refusing the call is a tool error.
+      response = await axios({ ...requestConfig, validateStatus: () => true });
     } catch (error) {
       console.error("Error executing passthrough request:", describeError(error));
-      if (axios.isAxiosError(error)) {
-        throw new Error(`Failed to execute passthrough request: ${error.response?.status} ${error.response?.statusText}`);
-      }
-      throw new Error("Failed to execute passthrough request");
+      throw oneApiError("Failed to execute One action", error, true);
     }
+
+    if (response.status >= 400 && !answeredByPlatform(response.headers)) {
+      console.error("One refused the passthrough request:", { status: response.status, url: url.split('?')[0], data: summarizeErrorData(response.data) });
+      throw oneRefusal("Failed to execute One action", response.status, response.data);
+    }
+
+    return {
+      responseData: response.data,
+      status: response.status,
+      requestConfig: sanitizedConfig
+    };
   }
 
   /**

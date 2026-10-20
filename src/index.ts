@@ -21,7 +21,8 @@ import {
   isActionAllowed,
   buildIntegrationsResponse,
 } from './helpers.js';
-import { FindArgsError, findOneActions } from './find.js';
+import { findOneActions } from './find.js';
+import { ToolError, toolErrorResult } from './tool-error.js';
 import {
   listOneIntegrationsToolConfig,
   findOneActionsToolConfig,
@@ -38,9 +39,10 @@ import {
   PermissionLevel
 } from './types.js';
 import { z } from 'zod';
+import { createRequire } from 'node:module';
 
 const SERVER_NAME = "one-mcp-server";
-const SERVER_VERSION = "1.0.0";
+const SERVER_VERSION: string = createRequire(import.meta.url)('../package.json').version;
 
 const ONE_SECRET = process.env.ONE_SECRET;
 if (!ONE_SECRET) {
@@ -201,11 +203,8 @@ async function handleFindOneActions(args: FindOneActionsArgs) {
   } catch (error) {
     // A call the agent has to fix goes back to it as a tool error it can read
     // and correct, rather than a protocol failure.
-    if (error instanceof FindArgsError) {
-      return {
-        content: [{ type: "text" as const, text: error.message }],
-        isError: true,
-      };
+    if (error instanceof ToolError) {
+      return toolErrorResult(error);
     }
     throw new McpError(
       ErrorCode.InternalError,
@@ -217,18 +216,16 @@ async function handleFindOneActions(args: FindOneActionsArgs) {
 async function handleExecuteOneAction(args: ExecuteOneActionArgs) {
   try {
     if (!isActionAllowed(args.actionId, ONE_ACTION_IDS)) {
-      throw new McpError(
-        ErrorCode.InvalidRequest,
-        `Action "${args.actionId}" is not in the allowed action list`
+      throw new ToolError(
+        `Action "${args.actionId}" is not one this server may run. Use an action listed in list_one_integrations or returned by find_one_actions.`
       );
     }
 
     if (!ONE_CONNECTION_KEYS.includes("*")) {
       const allowedKeys = oneClient.getUserConnections().map(c => c.key);
       if (!allowedKeys.includes(args.connectionKey)) {
-        throw new McpError(
-          ErrorCode.InvalidRequest,
-          `Connection key "${args.connectionKey}" is not allowed`
+        throw new ToolError(
+          `Connection key "${args.connectionKey}" is not one this server may use. Use a connection key from list_one_integrations.`
         );
       }
     }
@@ -236,9 +233,8 @@ async function handleExecuteOneAction(args: ExecuteOneActionArgs) {
     const actionDetails = await oneClient.getActionDetails(args.actionId);
 
     if (!isMethodAllowed(actionDetails.method, ONE_PERMISSIONS)) {
-      throw new McpError(
-        ErrorCode.InvalidRequest,
-        `Method "${actionDetails.method}" is not allowed under "${ONE_PERMISSIONS}" permission level`
+      throw new ToolError(
+        `Action "${args.actionId}" is a ${actionDetails.method.toUpperCase()} request, which this server's "${ONE_PERMISSIONS}" permission level does not allow, so it cannot be run here.`
       );
     }
 
@@ -251,8 +247,12 @@ async function handleExecuteOneAction(args: ExecuteOneActionArgs) {
           text: JSON.stringify(result, null, 2),
         },
       ],
+      structuredContent: result,
     };
   } catch (error) {
+    if (error instanceof ToolError) {
+      return toolErrorResult(error);
+    }
     throw new McpError(
       ErrorCode.InternalError,
       `Failed to execute One action: ${error instanceof Error ? error.message : 'Unknown error'}`

@@ -14,6 +14,7 @@
  */
 
 import { FindCaller } from './caller.js';
+import { ToolError } from './tool-error.js';
 import { buildKnowledgeResponse, isActionAllowed, isMethodAllowed, platformEnvSegment } from './helpers.js';
 import {
   ActionDetails,
@@ -69,13 +70,10 @@ export interface FindSettings {
   client?: { name: string; version?: string };
 }
 
-/** A call the agent has to fix, reported to it rather than failing the server. */
-export class FindArgsError extends Error {}
-
 /**
  * Answers a `find_one_actions` call: finds actions for `requests`, or serves
  * more documentation for `load`.
- * @throws {FindArgsError} When the call is neither, both, or `task` comes with `load`
+ * @throws {ToolError} When the call is neither, both, or `task` comes with `load`
  */
 export async function findOneActions(args: FindOneActionsArgs, deps: FindDeps, settings: FindSettings): Promise<string> {
   if (args.requests && !args.load) {
@@ -84,7 +82,7 @@ export async function findOneActions(args: FindOneActionsArgs, deps: FindDeps, s
   if (args.load && !args.requests && args.task === undefined) {
     return load(args.load, deps, settings);
   }
-  throw new FindArgsError(FIND_ARGS_ERROR);
+  throw new ToolError(FIND_ARGS_ERROR);
 }
 
 /** An action as the agent refers to it: title, method, path and `actionId`. */
@@ -244,7 +242,7 @@ async function find(
   caller: FindCaller
 ): Promise<string> {
   if (requests.length === 0 || requests.length > FIND_MAX_INTENTS) {
-    throw new FindArgsError(`Send between 1 and ${FIND_MAX_INTENTS} requests.`);
+    throw new ToolError(`Send between 1 and ${FIND_MAX_INTENTS} requests.`);
   }
 
   const reachable = requests.filter((r) => reaches(settings, r.platform));
@@ -379,7 +377,7 @@ function boundDocuments(plans: Planned[], documents: Map<string, string | undefi
 
 async function load(loads: FindLoadArgs[], deps: FindDeps, settings: FindSettings): Promise<string> {
   if (loads.length === 0 || loads.length > FIND_MAX_LOADS) {
-    throw new FindArgsError(`Send between 1 and ${FIND_MAX_LOADS} loads.`);
+    throw new ToolError(`Send between 1 and ${FIND_MAX_LOADS} loads.`);
   }
 
   const entries = await Promise.all(
