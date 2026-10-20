@@ -1,10 +1,14 @@
 version: 2
 updates:
+  # Security updates only: a limit of 0 stops routine version PRs, while
+  # Dependabot security updates still open a PR for a vulnerable dependency.
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
+  # Monthly, so the SHA-pinned actions in publish.yml do not go stale.
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
