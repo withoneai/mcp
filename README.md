@@ -166,6 +166,8 @@ If you used `one init`, the configuration below is already done for you. These e
 npx @withone/mcp
 ```
 
+Requires Node.js 22.23.4+, 24.22.1+ or 26.12.1+. Older Node trusts the compromised eMudhra CA certificates (October 2026), so a network attacker could intercept `ONE_SECRET`. On an older Node the server still starts, but every tool returns an error with the command that updates Node for how it was installed. If you can't update yet, `ONE_ALLOW_UNPATCHED_NODE=1` lets it call One anyway; you remain exposed while it is set.
+
 ### Claude Desktop / Cursor
 
 Add the following to your MCP config:

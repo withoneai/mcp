@@ -35,7 +35,7 @@ Authentication: the first connection returns 401 and the client surfaces an OAut
 
 ## Option B: Local server (npx, API key)
 
-Requirements: Node.js 18+ and a One API key. The user can create one at https://app.withone.ai/settings/api-keys. Ask the user for the key; never guess or invent one.
+Requirements: Node.js 22.23.4+, 24.22.1+ or 26.12.1+ and a One API key. On an older Node (including 18, 20, 23 and 25) the server starts, but every tool refuses with the command that updates Node; pass that on to the user rather than retrying. The user can create one at https://app.withone.ai/settings/api-keys. Ask the user for the key; never guess or invent one.
 
 ```json
 {
