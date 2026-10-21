@@ -23,6 +23,7 @@ import {
 } from './helpers.js';
 import { findOneActions } from './find.js';
 import { ToolError, toolErrorResult } from './tool-error.js';
+import { unpatchedNodeRefusal } from './node-check.js';
 import {
   listOneIntegrationsToolConfig,
   findOneActionsToolConfig,
@@ -69,6 +70,13 @@ const ONE_ACTION_IDS: string[] = process.env.ONE_ACTION_IDS
   : ["*"];
 
 const ONE_KNOWLEDGE_AGENT: boolean = process.env.ONE_KNOWLEDGE_AGENT === "true";
+
+// eMudhra CA compromise: on a Node without the fix every tool answers this
+// instead of calling One (see node-check.ts).
+const NODE_REFUSAL = unpatchedNodeRefusal();
+if (NODE_REFUSAL) {
+  console.error(NODE_REFUSAL);
+}
 
 const oneClient = new OneClient({
   secret: ONE_SECRET,
@@ -117,6 +125,7 @@ server.registerTool(
   "list_one_integrations",
   listOneIntegrationsToolConfig,
   async (args: z.infer<typeof listOneIntegrationsZodSchema>) => {
+    if (NODE_REFUSAL) return toolErrorResult(new ToolError(NODE_REFUSAL));
     await initializeOne();
     return await handleGetIntegrations(args as ListOneIntegrationsArgs);
   }
@@ -126,6 +135,7 @@ server.registerTool(
   "find_one_actions",
   findOneActionsToolConfig,
   async (args: z.infer<typeof findOneActionsZodSchema>) => {
+    if (NODE_REFUSAL) return toolErrorResult(new ToolError(NODE_REFUSAL));
     await initializeOne();
     return await handleFindOneActions(args as FindOneActionsArgs);
   }
@@ -136,6 +146,7 @@ if (!ONE_KNOWLEDGE_AGENT) {
     "execute_one_action",
     executeOneActionToolConfig,
     async (args: z.infer<typeof executeOneActionZodSchema>) => {
+      if (NODE_REFUSAL) return toolErrorResult(new ToolError(NODE_REFUSAL));
       await initializeOne();
       return await handleExecuteOneAction(args as ExecuteOneActionArgs);
     }
