@@ -126,7 +126,7 @@ ONE_IDENTITY_TYPE=user
 | `ONE_IDENTITY` | The identifier for the entity (e.g., user ID, team ID) | Any string |
 | `ONE_IDENTITY_TYPE` | The type of identity | `user`, `team`, `organization`, `project` |
 
-When set, the MCP server will only return connections associated with the specified identity. This is useful for multi-tenant applications where you want to scope integrations to specific users or entities.
+When set, the MCP server will only return connections associated with the specified identity, and `execute_one_action` will only run on those connections. This is useful for multi-tenant applications where you want to scope integrations to specific users or entities.
 
 ### Access Control
 
