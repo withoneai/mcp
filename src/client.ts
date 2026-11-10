@@ -34,6 +34,9 @@ const RESERVED_HEADER_PREFIX = 'x-one-';
  */
 const TRANSPORT_HEADERS = new Set(['host', 'connection', 'content-length', 'transfer-encoding', 'keep-alive', 'proxy-connection', 'te', 'trailer', 'upgrade']);
 
+/** Headers an upstream may obey as the method in place of the request line. */
+const METHOD_OVERRIDE_HEADERS = new Set(['x-http-method-override', 'x-http-method', 'x-method-override']);
+
 /** The prefix One renames every upstream response header to, so its presence marks a response the platform gave. */
 const PLATFORM_HEADER_PREFIX = 'x-passthrough-';
 
@@ -354,6 +357,16 @@ export class OneClient {
 
     const method = action.method;
     const contentType = isFormData ? 'multipart/form-data' : isFormUrlEncoded ? 'application/x-www-form-urlencoded' : 'application/json';
+
+    // The local filters judge the action's declared method, so a request must
+    // not ask the platform to perform a different one.
+    for (const [name, value] of Object.entries(stripReservedHeaders(headers))) {
+      if (METHOD_OVERRIDE_HEADERS.has(name.trim().toLowerCase()) && value.trim().toUpperCase() !== method.toUpperCase()) {
+        throw new ToolError(
+          `Header ${name.trim()} asks for ${value.trim()}, but this action is a ${method.toUpperCase()} request. Remove the header, or use an action with that method.`
+        );
+      }
+    }
 
     // Caller-supplied headers are merged first and may adjust things like
     // Content-Type, but they can never override One's own routing and auth

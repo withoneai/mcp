@@ -90,6 +90,28 @@ describe("executePassthroughRequest keeps One's headers authoritative", () => {
     assert.equal(h['x-custom-trace'], 't-1', 'a custom header still passes through');
   });
 
+  it('sends nothing when a method override differs from the action method', async () => {
+    const client = new OneClient(SECRET, base);
+    const post = { ...ACTION, method: 'POST' } as ActionDetails;
+    for (const name of ['X-HTTP-Method-Override', 'x-http-method', 'X-Method-Override', ' x-http-method-override ']) {
+      await assert.rejects(
+        client.executePassthroughRequest(exec({ headers: { [name]: 'DELETE' } }), post),
+        (e: Error) => e instanceof ToolError && /DELETE/.test(e.message) && /POST/.test(e.message),
+        name
+      );
+    }
+    assert.equal(received.length, 0, 'nothing is sent upstream');
+  });
+
+  it('allows a method override that matches the action method, in any casing', async () => {
+    const client = new OneClient(SECRET, base);
+    await client.executePassthroughRequest(
+      exec({ headers: { 'X-HTTP-Method-Override': ' post ' } }),
+      { ...ACTION, method: 'POST' } as ActionDetails
+    );
+    assert.equal(received.length, 1);
+  });
+
   it('names the expected path variables instead of sending an unfilled template', async () => {
     const client = new OneClient(SECRET, base);
     const templated = { ...ACTION, path: '/v1/things/{{thingId}}' } as ActionDetails;
