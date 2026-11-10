@@ -321,6 +321,7 @@ export class OneClient {
             actionId,
             title: action.title,
             method: action.method,
+            access: action.access,
             platform: action.connectionPlatform
           };
         } catch (error) {
@@ -358,7 +359,7 @@ export class OneClient {
     const method = action.method;
     const contentType = isFormData ? 'multipart/form-data' : isFormUrlEncoded ? 'application/x-www-form-urlencoded' : 'application/json';
 
-    // The local filters judge the action's declared method, so a request must
+    // An action's access level describes its declared method, so a request must
     // not ask the platform to perform a different one.
     for (const [name, value] of Object.entries(stripReservedHeaders(headers))) {
       if (METHOD_OVERRIDE_HEADERS.has(name.trim().toLowerCase()) && value.trim().toUpperCase() !== method.toUpperCase()) {

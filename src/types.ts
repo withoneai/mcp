@@ -57,6 +57,8 @@ export interface ActionDetails {
   knowledge?: string;
   path: string;
   method: string;
+  /** One's classification of what the action does. Unset is refused below `admin`. */
+  access?: ActionAccess;
   connectionPlatform?: string;
 }
 
@@ -73,14 +75,15 @@ export interface GrantedAction {
 /**
  * What the current access config lets the agent run on one connection, so
  * `list_one_integrations` can answer "what can I do here" without a search.
- * Mirrors the One core `ConnectionAccess` shape (`policy` discriminant):
+ * Follows the One core `ConnectionAccess` shape (`policy` discriminant), with
+ * `levels` here in place of core's `methods`:
  * - `full`: every action on the connection.
- * - `methods`: only actions whose HTTP method is in the set.
+ * - `levels`: only actions classified at one of these access levels.
  * - `actions`: only these specific actions.
  */
 export type ConnectionAccess =
   | { policy: "full" }
-  | { policy: "methods"; methods: string[] }
+  | { policy: "levels"; levels: ActionAccess[] }
   | { policy: "actions"; actions: GrantedAction[] };
 
 /**
@@ -88,6 +91,7 @@ export type ConnectionAccess =
  * belongs to so it can be bucketed onto the matching connection.
  */
 export interface ResolvedAllowedAction extends GrantedAction {
+  access?: ActionAccess;
   platform: string;
 }
 
@@ -181,6 +185,9 @@ export interface ListIntegrationsResponse {
 
 export type PermissionLevel = "read" | "write" | "admin";
 
+/** One's classification of what an action does, whatever its HTTP method. */
+export type ActionAccess = "read" | "write" | "delete";
+
 /** One operation an agent wants done on one platform. */
 export interface FindIntent {
   platform: string;
@@ -195,6 +202,8 @@ export interface FoundAction {
   method: string;
   path: string;
   tags: string[];
+  /** One's classification of what the action does. Unset is refused below `admin`. */
+  access?: ActionAccess;
   knowledge?: string;
 }
 

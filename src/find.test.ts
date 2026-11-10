@@ -11,7 +11,7 @@ import {
 } from './find.js';
 import { ToolError } from './tool-error.js';
 import type { FindCaller } from './caller.js';
-import type { ActionDetails, FindIntent, FoundAction, FoundActions } from './types.js';
+import type { ActionAccess, ActionDetails, FindIntent, FoundAction, FoundActions } from './types.js';
 
 // Pure: core and the knowledge endpoint are stubbed, so no network is touched.
 
@@ -22,13 +22,14 @@ const LARGE = [
   `## Response Fields\n${Array.from({ length: 400 }, (_, i) => `- field ${i}: a described response field`).join('\n')}`,
 ].join('\n\n');
 
-const action = (id: string, method = 'POST', tags: string[] = []): FoundAction => ({
+const action = (id: string, method = 'POST', tags: string[] = [], access: ActionAccess | undefined = method === 'GET' ? 'read' : 'write'): FoundAction => ({
   systemId: id,
   title: `Action ${id}`,
   key: `key-${id}`,
   method,
   path: `/v1/${id}`,
   tags,
+  access,
   knowledge: 'a digest core rendered for its own route',
 });
 
@@ -72,6 +73,7 @@ function deps(
         _id: id,
         title: `Action ${id}`,
         method: id === 'c' ? 'GET' : 'POST',
+        access: id === 'unclassified' ? undefined : id === 'c' ? 'read' : id === 'gone' ? 'delete' : 'write',
         path: `/v1/${id}`,
         tags: id === 'custom' ? ['custom'] : [],
         knowledge: knowledge[id] ?? `# Action ${id}\n\nSmall doc for ${id}.`,
@@ -142,6 +144,51 @@ describe('find_one_actions', () => {
     assert.ok(text.includes('The chosen action is not allowed on this server, so this is the next allowed candidate'));
     assert.ok(text.indexOf('actionId: `d`') < text.indexOf('actionId: `c`'), 'the runner-up stands in first, the companion after it');
     assert.ok(!text.includes('use this one instead'), 'the promoted runner-up is not also offered as a substitute');
+  });
+
+  it('judges an action by its access level, not its HTTP method', async () => {
+    const text = await findOneActions(
+      { requests: intent },
+      deps([answer({ selected: [action('post-read', 'POST', [], 'read')], alternatives: [action('get-write', 'GET', [], 'write')] })]),
+      settings({ permissions: 'read' })
+    );
+
+    assert.ok(text.includes('actionId: `post-read`'), 'a POST that only reads is offered at the read level');
+    assert.ok(!text.includes('actionId: `get-write`'), 'a GET that writes is not');
+  });
+
+  it('keeps delete actions from the write level, whatever their method', async () => {
+    const text = await findOneActions(
+      { requests: intent },
+      deps([answer({ selected: [action('post-delete', 'POST', [], 'delete')], alternatives: [action('delete-write', 'DELETE', [], 'write')] })]),
+      settings({ permissions: 'write' })
+    );
+
+    assert.ok(!text.includes('actionId: `post-delete`'));
+    assert.ok(text.includes('actionId: `delete-write`'));
+  });
+
+  it('offers an action with no access level only at the admin level', async () => {
+    const unclassified = () => answer({ selected: [action('none', 'GET', [], null as unknown as undefined)], alternatives: [] });
+
+    const refused = await findOneActions({ requests: intent }, deps([unclassified()]), settings({ permissions: 'read' }));
+    assert.ok(!refused.includes('actionId: `none`'));
+
+    const offered = await findOneActions({ requests: intent }, deps([unclassified()]), settings());
+    assert.ok(offered.includes('actionId: `none`'));
+  });
+
+  it('refuses a load by access level, the same as an action it does not know', async () => {
+    const text = await findOneActions(
+      { load: [{ action_id: 'c' }, { action_id: 'a' }, { action_id: 'unclassified' }, { action_id: 'missing' }] },
+      deps([]),
+      settings({ permissions: 'read' })
+    );
+
+    assert.ok(text.includes('Small doc for c.'));
+    for (const id of ['a', 'unclassified', 'missing']) {
+      assert.ok(text.includes(`\`${id}\`: ${REFUSED_LOAD}`), id);
+    }
   });
 
   it('serves the first document a load actually returns, however large, even after a refused entry', async () => {

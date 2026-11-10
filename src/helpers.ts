@@ -7,7 +7,7 @@
  * @author One
  */
 
-import { PaginatedResponse, PermissionLevel, ConnectionAccess, ResolvedAllowedAction, Connection, ConnectionDefinition, ListIntegrationsResponse } from './types.js';
+import { ActionAccess, PaginatedResponse, PermissionLevel, ConnectionAccess, ResolvedAllowedAction, Connection, ConnectionDefinition, ListIntegrationsResponse } from './types.js';
 import axios, { AxiosResponse } from 'axios';
 import { ToolError } from './tool-error.js';
 import {
@@ -317,19 +317,35 @@ export function replacePathVariables(path: string, variables: Record<string, str
   return filled;
 }
 
-const PERMISSION_METHODS: Record<PermissionLevel, string[] | null> = {
-  read: ["GET"],
-  write: ["GET", "POST", "PUT", "PATCH"],
+const PERMISSION_LEVELS: Record<PermissionLevel, ActionAccess[] | null> = {
+  read: ["read"],
+  write: ["read", "write"],
   admin: null,
 };
 
-export function isMethodAllowed(
-  method: string,
+/**
+ * Whether the permission level allows an action classified at `access`. Below
+ * `admin`, an action with no level or one this server does not know is refused,
+ * since nothing says it is safe at that level.
+ */
+export function isAccessAllowed(
+  access: string | null | undefined,
   permissions: PermissionLevel
 ): boolean {
-  const allowed = PERMISSION_METHODS[permissions];
+  const allowed = PERMISSION_LEVELS[permissions];
   if (allowed === null) return true;
-  return allowed.includes(method.toUpperCase());
+  return (allowed as (string | null | undefined)[]).includes(access);
+}
+
+/** What an agent is told when the permission level refuses an action. */
+export function accessRefusal(
+  actionId: string,
+  access: string | null | undefined,
+  permissions: PermissionLevel
+): string {
+  return access
+    ? `Action "${actionId}" is classified as ${access}, which this server's "${permissions}" permission level does not allow, so it cannot be run here.`
+    : `Action "${actionId}" has no access level, so this server's "${permissions}" permission level does not allow it and it cannot be run here.`;
 }
 
 export function isActionAllowed(
@@ -344,9 +360,9 @@ export function isActionAllowed(
  * `platform`, so `list_one_integrations` can surface it without a search.
  * Mirrors the One core `resolve_connection_access` precedence:
  * an action allowlist wins (report the enumerated actions on this platform),
- * else a non-`admin` permission level reports its method set, else full.
+ * else a non-`admin` permission level reports its access levels, else full.
  * `resolvedAllowed` is the allowlisted actions already resolved to their
- * metadata and method-filtered by the permission level.
+ * metadata and filtered by the permission level.
  */
 export function computeConnectionAccess(
   platform: string,
@@ -361,9 +377,9 @@ export function computeConnectionAccess(
     return { policy: "actions", actions };
   }
 
-  const methods = PERMISSION_METHODS[permissions];
-  if (methods !== null) {
-    return { policy: "methods", methods };
+  const levels = PERMISSION_LEVELS[permissions];
+  if (levels !== null) {
+    return { policy: "levels", levels };
   }
 
   return { policy: "full" };

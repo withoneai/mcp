@@ -17,7 +17,8 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { OneClient } from './client.js';
 import {
-  isMethodAllowed,
+  accessRefusal,
+  isAccessAllowed,
   isActionAllowed,
   buildIntegrationsResponse,
 } from './helpers.js';
@@ -155,11 +156,11 @@ if (!ONE_KNOWLEDGE_AGENT) {
 
 async function handleGetIntegrations(args: ListOneIntegrationsArgs) {
   try {
-    // Resolve the action allowlist to per-platform metadata (method-filtered by
-    // the permission level) once, so each connection can report the exact
+    // Resolve the action allowlist to per-platform metadata (filtered by the
+    // permission level) once, so each connection can report the exact
     // actions it may run. Only needed when an action allowlist is set.
     const resolvedAllowed = (await oneClient.resolveAllowedActions(ONE_ACTION_IDS))
-      .filter(action => isMethodAllowed(action.method, ONE_PERMISSIONS));
+      .filter(action => isAccessAllowed(action.access, ONE_PERMISSIONS));
 
     // Execute mode lists only connections: every connection carries its
     // access, and the full catalog (1000+ platforms) would sit in the agent's
@@ -236,10 +237,8 @@ async function handleExecuteOneAction(args: ExecuteOneActionArgs) {
 
     const actionDetails = await oneClient.getActionDetails(args.actionId);
 
-    if (!isMethodAllowed(actionDetails.method, ONE_PERMISSIONS)) {
-      throw new ToolError(
-        `Action "${args.actionId}" is a ${actionDetails.method.toUpperCase()} request, which this server's "${ONE_PERMISSIONS}" permission level does not allow, so it cannot be run here.`
-      );
+    if (!isAccessAllowed(actionDetails.access, ONE_PERMISSIONS)) {
+      throw new ToolError(accessRefusal(args.actionId, actionDetails.access, ONE_PERMISSIONS));
     }
 
     const result = await oneClient.executePassthroughRequest(args, actionDetails);

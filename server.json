@@ -47,7 +47,7 @@
         },
         {
           "name": "ONE_PERMISSIONS",
-          "description": "Restrict actions by HTTP method: read (GET), write (GET/POST/PUT/PATCH) or admin (all)",
+          "description": "Restrict actions by what they do: read (read actions only), write (read and write actions) or admin (all, including delete)",
           "isRequired": false,
           "default": "admin"
         },
