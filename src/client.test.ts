@@ -74,6 +74,22 @@ describe("executePassthroughRequest keeps One's headers authoritative", () => {
     assert.equal(h['content-type'], 'application/json', 'the default content type is kept');
   });
 
+  it('a caller cannot set the headers that control the connection', async () => {
+    const client = new OneClient(SECRET, base);
+    await client.executePassthroughRequest(
+      exec({
+        data: { a: 1 },
+        headers: { Host: 'attacker.example', 'Content-Length': '1', Connection: 'close', 'x-custom-trace': 't-1' },
+      }),
+      { ...ACTION, method: 'POST' } as ActionDetails
+    );
+    const h = received[0].headers;
+    assert.equal(h.host, new URL(base).host);
+    assert.equal(h['content-length'], '7', 'the length comes from the body that is sent');
+    assert.notEqual(h.connection, 'close');
+    assert.equal(h['x-custom-trace'], 't-1', 'a custom header still passes through');
+  });
+
   it('names the expected path variables instead of sending an unfilled template', async () => {
     const client = new OneClient(SECRET, base);
     const templated = { ...ACTION, path: '/v1/things/{{thingId}}' } as ActionDetails;
@@ -333,6 +349,16 @@ describe('stripReservedHeaders', () => {
     assert.deepEqual(stripReservedHeaders({ 'X-One-Secret': 'a', 'x-one-action-id': 'b', Accept: 'x' }), { Accept: 'x' });
     assert.deepEqual(stripReservedHeaders({ n: 5 as unknown as string }), { n: '5' });
     assert.deepEqual(stripReservedHeaders(undefined), {});
+  });
+
+  it('drops connection-level headers case-insensitively', () => {
+    for (const name of ['Host', 'host', 'CONNECTION', 'Content-Length', 'Transfer-Encoding', 'Keep-Alive', 'Proxy-Connection', 'TE', 'Trailer', 'Upgrade']) {
+      assert.deepEqual(stripReservedHeaders({ [name]: 'x', Accept: 'y' }), { Accept: 'y' }, name);
+    }
+  });
+
+  it('ignores surrounding whitespace in a header name', () => {
+    assert.deepEqual(stripReservedHeaders({ 'Host ': 'a', ' host': 'b', ' x-one-secret': 'c', Accept: 'y' }), { Accept: 'y' });
   });
 });
 

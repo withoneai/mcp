@@ -27,6 +27,13 @@ import { ToolError, oneApiError, oneRefusal } from './tool-error.js';
 /** Header names that only the server may set on an outgoing request. */
 const RESERVED_HEADER_PREFIX = 'x-one-';
 
+/**
+ * Headers that control the connection to One rather than describe the request.
+ * Node also takes the TLS server name from `Host`, so a caller must not set it
+ * on a request carrying the secret.
+ */
+const TRANSPORT_HEADERS = new Set(['host', 'connection', 'content-length', 'transfer-encoding', 'keep-alive', 'proxy-connection', 'te', 'trailer', 'upgrade']);
+
 /** The prefix One renames every upstream response header to, so its presence marks a response the platform gave. */
 const PLATFORM_HEADER_PREFIX = 'x-passthrough-';
 
@@ -40,14 +47,18 @@ export function answeredByPlatform(headers: Record<string, unknown>): boolean {
 
 /**
  * Drops any caller-supplied header that One itself controls (`x-one-secret`,
- * `x-one-connection-key`, `x-one-action-id`, ...). Comparison is
- * case-insensitive because HTTP header names are.
+ * `x-one-connection-key`, `x-one-action-id`, ...) or that controls the
+ * connection (`Host`, `Content-Length`, ...). Comparison is case-insensitive
+ * because HTTP header names are.
  */
 export function stripReservedHeaders(headers?: Record<string, any>): Record<string, string> {
   if (!headers) return {};
   return Object.fromEntries(
     Object.entries(headers)
-      .filter(([name]) => !name.toLowerCase().startsWith(RESERVED_HEADER_PREFIX))
+      .filter(([name]) => {
+        const normalized = name.trim().toLowerCase();
+        return !normalized.startsWith(RESERVED_HEADER_PREFIX) && !TRANSPORT_HEADERS.has(normalized);
+      })
       .map(([name, value]) => [name, String(value)])
   );
 }
