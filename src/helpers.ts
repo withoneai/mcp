@@ -31,6 +31,48 @@ export interface KnowledgeResponse {
 }
 
 /**
+ * Bounds an upstream error body before it is logged: small payloads pass
+ * through, larger ones are truncated to a string, and an unserializable value
+ * is replaced with a placeholder. Keeps a huge or odd error response from
+ * bloating a single log line.
+ */
+export function summarizeErrorData(data: unknown): unknown {
+  if (data === undefined || data === null) return undefined;
+  let serialized: string;
+  try {
+    serialized = typeof data === 'string' ? data : JSON.stringify(data);
+  } catch {
+    return '[unserializable response body]';
+  }
+  const MAX = 1000;
+  return serialized.length <= MAX ? data : `${serialized.slice(0, MAX)}… (${serialized.length} chars, truncated)`;
+}
+
+/**
+ * A log-safe summary of a failed request. Axios errors carry the full request
+ * config, including the `x-one-secret` header, so they must never be logged
+ * whole. Only the status, the upstream message, the route (query stripped), and
+ * a bounded copy of the response body are kept.
+ */
+export function describeError(error: unknown): Record<string, unknown> {
+  if (axios.isAxiosError(error)) {
+    const url = error.config?.url;
+    return {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      method: error.config?.method?.toUpperCase(),
+      url: typeof url === 'string' ? url.split('?')[0] : undefined,
+      message: error.message,
+      data: summarizeErrorData(error.response?.data),
+    };
+  }
+  if (error instanceof Error) {
+    return { name: error.name, message: error.message };
+  }
+  return { error: String(error) };
+}
+
+/**
  * Paginates through API results by repeatedly calling a fetch function until all data is retrieved.
  * @param fetchFn - Function that fetches paginated data, takes skip and limit parameters
  * @param limit - Maximum number of items to fetch per request (default: 100)
@@ -58,7 +100,7 @@ export async function paginateResults<T>(
 
     return allResults;
   } catch (error) {
-    console.error("Error in pagination:", error);
+    console.error("Error in pagination:", describeError(error));
     throw error;
   }
 }
@@ -89,7 +131,7 @@ export async function fetchPaginatedData<T>(
       });
       return response.data;
     } catch (error) {
-      console.error(`Failed to fetch from ${baseUrl}:`, error);
+      console.error(`Failed to fetch from ${baseUrl}:`, describeError(error));
       throw error;
     }
   };

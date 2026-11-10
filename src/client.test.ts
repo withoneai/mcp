@@ -2,8 +2,10 @@ import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { inspect } from 'node:util';
 
-import { OneClient, stripReservedHeaders, describeError, answeredByPlatform } from './client.js';
+import { OneClient, stripReservedHeaders, answeredByPlatform } from './client.js';
+import { describeError, fetchPaginatedData } from './helpers.js';
 import { ToolError } from './tool-error.js';
 import type { ActionDetails, ExecuteOneActionArgs } from './types.js';
 
@@ -153,6 +155,51 @@ describe("executePassthroughRequest keeps One's headers authoritative", () => {
     assert.ok(log.includes('422') && log.includes('upstream said no'), 'the log still says what failed');
     assert.ok(log.includes('truncated'), 'a huge upstream body is bounded');
     assert.ok(message.includes('422') && message.includes('upstream said no'), "the tool error carries the status and One's reason");
+  });
+});
+
+describe('a failed paginated fetch', () => {
+  // Rendered the way console.error renders its arguments, which is what prints
+  // a whole axios error's request headers.
+  const captureLog = async (run: () => Promise<unknown>): Promise<string> => {
+    const logged: string[] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => {
+      logged.push(args.map((a) => (typeof a === 'string' ? a : inspect(a, { depth: null }))).join(' '));
+    };
+    try {
+      await assert.rejects(run());
+    } finally {
+      console.error = original;
+    }
+    return logged.join('\n');
+  };
+
+  it('never logs the secret when One answers with an error', async () => {
+    const server = http.createServer((_req, res) => {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ message: 'upstream said no' }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1/vault/connections`;
+    try {
+      const log = await captureLog(() => fetchPaginatedData(url, { 'x-one-secret': SECRET }));
+      assert.ok(!log.includes(SECRET), 'the secret never reaches the log');
+      assert.ok(log.includes('500') && log.includes('upstream said no'), 'the log still says what failed');
+    } finally {
+      server.close();
+    }
+  });
+
+  it('never logs the secret when One cannot be reached', async () => {
+    const closed = http.createServer();
+    await new Promise<void>((resolve) => closed.listen(0, '127.0.0.1', () => resolve()));
+    const port = (closed.address() as AddressInfo).port;
+    await new Promise<void>((resolve) => closed.close(() => resolve()));
+
+    const log = await captureLog(() => fetchPaginatedData(`http://127.0.0.1:${port}/v1/vault/connections`, { 'x-one-secret': SECRET }));
+    assert.ok(!log.includes(SECRET), 'the secret never reaches the log');
+    assert.ok(log.includes('ECONNREFUSED'), 'the log still says what failed');
   });
 });
 
