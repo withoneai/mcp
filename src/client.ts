@@ -479,6 +479,36 @@ export class OneClient {
   }
 
   /**
+   * Refuses a connection key outside this server's scope, set by
+   * `ONE_CONNECTION_KEYS` or `ONE_IDENTITY`. The list is loaded once per
+   * process, so a key it lacks is checked against a fresh copy before being
+   * refused: it may be a connection made since, or the first load may have failed.
+   * @param connectionKey - The key the caller asked to run on
+   * @throws {ToolError} If the key is out of scope, or the list cannot be read
+   */
+  async ensureConnectionInScope(connectionKey: string): Promise<void> {
+    const keysRestricted = this.connectionKeys !== undefined && !this.connectionKeys.includes('*');
+    if (!keysRestricted && !this.identity) return;
+
+    const isLoaded = () => this.connections.some((c) => c.key === connectionKey);
+    if (isLoaded()) return;
+
+    const loaded = this.connections;
+    try {
+      await this.fetchConnections();
+    } catch (error) {
+      this.connections = loaded;
+      throw oneApiError('Could not confirm this connection is available to this server', error);
+    }
+
+    if (!isLoaded()) {
+      throw new ToolError(
+        `Connection key "${connectionKey}" is not one this server may use. Use a connection key from list_one_integrations.`
+      );
+    }
+  }
+
+  /**
    * Gets available connectors/platforms
    * @returns Array of available connection definitions
    */

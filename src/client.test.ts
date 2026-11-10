@@ -181,6 +181,100 @@ describe("executePassthroughRequest keeps One's headers authoritative", () => {
   });
 });
 
+describe('ensureConnectionInScope', () => {
+  let server: http.Server;
+  let base = '';
+  let rows: string[] = [];
+  let listQueries: URLSearchParams[] = [];
+  let failLists = false;
+
+  const client = (options: { identity?: string; connectionKeys?: string[] } = {}) =>
+    new OneClient({ secret: SECRET, baseUrl: base, fetchConnectors: false, ...options });
+
+  before(async () => {
+    server = http.createServer((req, res) => {
+      listQueries.push(new URL(req.url ?? '', 'http://x').searchParams);
+      res.writeHead(failLists ? 500 : 200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(failLists ? { message: 'boom' } : { rows: rows.map((key) => ({ key, platform: 'test' })), total: rows.length }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
+    base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+
+  after(() => {
+    server.close();
+  });
+
+  beforeEach(() => {
+    rows = ['key_a'];
+    listQueries = [];
+    failLists = false;
+  });
+
+  it('allows any key when the server has no scope, without listing', async () => {
+    const c = client();
+    await c.ensureConnectionInScope('key_b');
+    assert.equal(listQueries.length, 0);
+  });
+
+  it("allows the identity's own key without listing again", async () => {
+    const c = client({ identity: 'user_a' });
+    await c.initialize();
+    await c.ensureConnectionInScope('key_a');
+    assert.equal(listQueries.length, 1);
+  });
+
+  it("refuses another identity's key, using the identity-filtered list", async () => {
+    const c = client({ identity: 'user_a' });
+    await c.initialize();
+    await assert.rejects(c.ensureConnectionInScope('key_b'), (e: Error) => e instanceof ToolError && /is not one this server may use/.test(e.message));
+    assert.equal(listQueries.at(-1)?.get('identity'), 'user_a', 'the check reads the same filtered list');
+  });
+
+  it('allows a connection made after the list was loaded', async () => {
+    const c = client({ identity: 'user_a' });
+    await c.initialize();
+    rows = ['key_a', 'key_new'];
+    await c.ensureConnectionInScope('key_new');
+    assert.deepEqual(c.getUserConnections().map((x) => x.key), ['key_a', 'key_new']);
+  });
+
+  const silenced = async (run: () => Promise<unknown>) => {
+    const original = console.error;
+    console.error = () => {};
+    try {
+      return await run();
+    } finally {
+      console.error = original;
+    }
+  };
+
+  it('recovers when the first load failed', async () => {
+    const c = client({ identity: 'user_a' });
+    failLists = true;
+    await silenced(() => c.initialize());
+    failLists = false;
+    await c.ensureConnectionInScope('key_a');
+  });
+
+  it('refuses when the list cannot be read, and keeps the loaded list', async () => {
+    const c = client({ identity: 'user_a' });
+    await c.initialize();
+    failLists = true;
+    await silenced(() =>
+      assert.rejects(c.ensureConnectionInScope('key_b'), (e: Error) => e instanceof ToolError && /Could not confirm/.test(e.message))
+    );
+    assert.deepEqual(c.getUserConnections().map((x) => x.key), ['key_a']);
+  });
+
+  it('still applies ONE_CONNECTION_KEYS', async () => {
+    const c = client({ connectionKeys: ['key_a'] });
+    await c.initialize();
+    await assert.rejects(c.ensureConnectionInScope('key_b'), ToolError);
+    await c.ensureConnectionInScope('key_a');
+  });
+});
+
 describe('a failed paginated fetch', () => {
   // Rendered the way console.error renders its arguments, which is what prints
   // a whole axios error's request headers.

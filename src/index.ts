@@ -232,14 +232,7 @@ async function handleExecuteOneAction(args: ExecuteOneActionArgs) {
       );
     }
 
-    if (!ONE_CONNECTION_KEYS.includes("*")) {
-      const allowedKeys = oneClient.getUserConnections().map(c => c.key);
-      if (!allowedKeys.includes(args.connectionKey)) {
-        throw new ToolError(
-          `Connection key "${args.connectionKey}" is not one this server may use. Use a connection key from list_one_integrations.`
-        );
-      }
-    }
+    await oneClient.ensureConnectionInScope(args.connectionKey);
 
     const actionDetails = await oneClient.getActionDetails(args.actionId);
 
