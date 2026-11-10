@@ -370,6 +370,12 @@ export class OneClient {
     const normalizedPath = finalActionPath.startsWith('/') ? finalActionPath : `/${finalActionPath}`;
     const url = `${this.baseUrl}/v1/passthrough${normalizedPath}`;
 
+    // This request carries the secret, and the local filters only describe
+    // passthrough, so it must not resolve to any other route of the One API.
+    if (!new URL(url).pathname.startsWith(new URL(`${this.baseUrl}/v1/passthrough/`).pathname)) {
+      throw new ToolError(`Action path ${action.path} does not stay on One's passthrough route, so it was not sent.`);
+    }
+
     let requestData = data;
     if (typeof requestData === 'string') {
       try { requestData = JSON.parse(requestData); } catch {}

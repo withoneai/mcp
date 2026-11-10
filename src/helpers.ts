@@ -305,7 +305,16 @@ export function replacePathVariables(path: string, variables: Record<string, str
   };
 
   // Double brackets first, so {{name}} is not read as {name} wrapped in braces.
-  return path.replace(/\{\{([^}]+)\}\}/g, (_match, variable) => lookup(variable)).replace(/\{([^}]+)\}/g, (_match, variable) => lookup(variable));
+  const filled = path.replace(/\{\{([^}]+)\}\}/g, (_match, variable) => lookup(variable)).replace(/\{([^}]+)\}/g, (_match, variable) => lookup(variable));
+
+  // encodeURIComponent leaves dots alone, and a dot segment would move the
+  // request off the action's route. Checked on the filled path because
+  // adjacent variables can assemble one.
+  const route = filled.split(/[?#]/, 1)[0];
+  if (route.split('/').some((segment) => segment === '.' || segment === '..')) {
+    throw new ToolError(`Invalid pathVariables for ${path}: a path segment cannot be "." or "..".`);
+  }
+  return filled;
 }
 
 const PERMISSION_METHODS: Record<PermissionLevel, string[] | null> = {
