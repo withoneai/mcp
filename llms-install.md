@@ -53,7 +53,7 @@ Requirements: Node.js 22.23.4+, 24.22.1+ or 26.12.1+ and a One API key. On an ol
 }
 ```
 
-Optional environment variables for access control (`ONE_PERMISSIONS`, `ONE_CONNECTION_KEYS`, `ONE_ACTION_IDS`, `ONE_KNOWLEDGE_AGENT`) and identity scoping (`ONE_IDENTITY`, `ONE_IDENTITY_TYPE`) are documented in [README.md](README.md).
+Optional environment variables for access control (`ONE_PERMISSIONS`, `ONE_APPROVAL`, `ONE_CONNECTION_KEYS`, `ONE_ACTION_IDS`, `ONE_KNOWLEDGE_AGENT`) and identity scoping (`ONE_IDENTITY`, `ONE_IDENTITY_TYPE`) are documented in [README.md](README.md).
 
 ## Verify the installation
 
