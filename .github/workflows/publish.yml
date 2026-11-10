@@ -25,5 +25,50 @@ jobs:
           fi
       - name: Build
         run: npm run build
+      # The registry entry names the npm version, so all three must match the
+      # release before anything is published.
+      - name: Check versions match the release
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          pkg=$(jq -r .version package.json)
+          server=$(jq -r .version server.json)
+          server_pkg=$(jq -r '.packages[] | select(.registryType == "npm") | .version' server.json)
+          echo "release ${TAG#v}, package.json $pkg, server.json $server / $server_pkg"
+          if [ "${TAG#v}" != "$pkg" ] || [ "$pkg" != "$server" ] || [ "$pkg" != "$server_pkg" ]; then
+            echo "::error::Release, package.json and server.json versions differ"
+            exit 1
+          fi
       - name: Publish
         run: npm publish --access public
+      - name: Install mcp-publisher
+        env:
+          VERSION: v1.8.1
+          SHA256: a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc
+        run: |
+          curl -fsSL -o mcp-publisher.tar.gz "https://github.com/modelcontextprotocol/registry/releases/download/${VERSION}/mcp-publisher_linux_amd64.tar.gz"
+          echo "${SHA256}  mcp-publisher.tar.gz" | sha256sum -c -
+          tar xzf mcp-publisher.tar.gz mcp-publisher
+          rm mcp-publisher.tar.gz
+      # ai.withone/* is proven by the ed25519 key published in withone.ai's DNS.
+      - name: Publish to the MCP registry
+        env:
+          MCP_REGISTRY_PRIVATE_KEY: ${{ secrets.MCP_REGISTRY_PRIVATE_KEY }}
+        run: |
+          if [ -z "$MCP_REGISTRY_PRIVATE_KEY" ]; then
+            echo "::error::MCP_REGISTRY_PRIVATE_KEY is not set, so the MCP registry was not updated"
+            exit 1
+          fi
+          ./mcp-publisher login dns --domain withone.ai --private-key "$MCP_REGISTRY_PRIVATE_KEY"
+          # The registry checks the npm package, which can take a moment to appear.
+          for attempt in 1 2 3 4 5; do
+            if ./mcp-publisher publish; then
+              exit 0
+            fi
+            echo "Attempt $attempt failed, retrying in 20s"
+            sleep 20
+          done
+          exit 1
+      - name: Clear registry login
+        if: always()
+        run: rm -rf ~/.config/mcp-publisher ./mcp-publisher
