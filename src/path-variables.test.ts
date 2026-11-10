@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { replacePathVariables } from './helpers.js';
+import { ToolError } from './tool-error.js';
 
 describe('replacePathVariables', () => {
   it('fills exact names in both bracket styles', () => {
@@ -32,5 +33,27 @@ describe('replacePathVariables', () => {
 
   it('rejects empty values', () => {
     assert.throws(() => replacePathVariables('/x/{{id}}', { id: '' }), /Missing value for path variable: id/);
+  });
+
+  it('refuses a value that would become a dot segment', () => {
+    for (const value of ['.', '..']) {
+      assert.throws(() => replacePathVariables('/a/{{id}}/b', { id: value }), ToolError, value);
+    }
+  });
+
+  it('refuses dot segments assembled from adjacent variables', () => {
+    assert.throws(() => replacePathVariables('/a/{{x}}{{y}}/b', { x: '.', y: '.' }), ToolError);
+  });
+
+  it('keeps values that only contain dots', () => {
+    assert.equal(replacePathVariables('/a/{{x}}/{{y}}/{{z}}', { x: '...', y: '..hidden', z: 'file.txt' }), '/a/.../..hidden/file.txt');
+  });
+
+  it('keeps a value with a slash inside one encoded segment', () => {
+    assert.equal(replacePathVariables('/a/{{x}}', { x: '../..' }), '/a/..%2F..');
+  });
+
+  it('allows dots in a variable after the query separator', () => {
+    assert.equal(replacePathVariables('/a?q={{q}}', { q: '..' }), '/a?q=..');
   });
 });

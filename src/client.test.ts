@@ -84,6 +84,29 @@ describe("executePassthroughRequest keeps One's headers authoritative", () => {
     assert.equal(received.length, 1);
   });
 
+  it('sends nothing when a path variable would leave the action route', async () => {
+    const client = new OneClient(SECRET, base);
+    const templated = { ...ACTION, path: '/v0/{{a}}/{{b}}/{{c}}' } as ActionDetails;
+    await assert.rejects(
+      client.executePassthroughRequest(exec({ pathVariables: { a: '..', b: '..', c: 'connections' } }), templated),
+      ToolError
+    );
+    assert.equal(received.length, 0, 'nothing is sent upstream');
+  });
+
+  it('sends nothing when an action path resolves outside passthrough', async () => {
+    const client = new OneClient(SECRET, base);
+    const encoded = { ...ACTION, path: '/%2e%2e/%2E%2e/connections' } as ActionDetails;
+    await assert.rejects(client.executePassthroughRequest(exec({}), encoded), ToolError);
+    assert.equal(received.length, 0, 'nothing is sent upstream');
+  });
+
+  it('keeps ordinary paths working under a base URL with a path prefix', async () => {
+    const client = new OneClient(SECRET, `${base}/prefix`);
+    await client.executePassthroughRequest(exec({}), ACTION);
+    assert.equal(received.length, 1);
+  });
+
   it('a caller may still set Content-Type, in any casing', async () => {
     const client = new OneClient(SECRET, base);
     await client.executePassthroughRequest(exec({ headers: { 'content-type': 'text/plain' } }), ACTION);
