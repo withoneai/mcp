@@ -73,8 +73,8 @@ const connectionAccessSchema = z.union([
         policy: z.literal("full")
     }),
     z.object({
-        policy: z.literal("methods"),
-        methods: z.array(z.string())
+        policy: z.literal("levels"),
+        levels: z.array(z.enum(["read", "write", "delete"]))
     }),
     z.object({
         policy: z.literal("actions"),
@@ -84,7 +84,7 @@ const connectionAccessSchema = z.union([
             method: z.string()
         }))
     })
-]).describe("What the access config lets you run on this connection: `full`, an allowed `methods` set, or a specific `actions` list. When `actions`, those are exactly what may run, so no search is needed.");
+]).describe("What the access config lets you run on this connection: `full`, the access `levels` you may run (`read`, `write`, `delete`), or a specific `actions` list. When `actions`, those are exactly what may run, so no search is needed.");
 
 export const listOneIntegrationsOutputSchema = {
     connections: z.array(z.object({
@@ -120,7 +120,7 @@ const READ_ONLY_ANNOTATIONS = {
  */
 export const listOneIntegrationsToolConfig = {
     title: "List One Integrations",
-    description: "List the platforms the user has connected on One. ALWAYS call this tool first in any workflow. Each connection has the kebab-case `platform` name (e.g., 'ship-station', 'shopify') and the `key` (the connectionKey for execute_one_action) you'll need for subsequent tool calls. Each connection carries an `access` field describing what you may run on it: `full`, a set of allowed HTTP `methods`, or a specific list of `actions` (each with `actionId`, `title`, `method`). When a connection is action-scoped, its `actions` are exactly what may run, so you need not search.",
+    description: "List the platforms the user has connected on One. ALWAYS call this tool first in any workflow. Each connection has the kebab-case `platform` name (e.g., 'ship-station', 'shopify') and the `key` (the connectionKey for execute_one_action) you'll need for subsequent tool calls. Each connection carries an `access` field describing what you may run on it: `full`, a set of allowed access `levels` (`read`, `write`, `delete`), or a specific list of `actions` (each with `actionId`, `title`, `method`). When a connection is action-scoped, its `actions` are exactly what may run, so you need not search.",
     inputSchema: listOneIntegrationsInputSchema,
     outputSchema: listOneIntegrationsOutputSchema,
     annotations: READ_ONLY_ANNOTATIONS

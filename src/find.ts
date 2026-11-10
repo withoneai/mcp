@@ -15,7 +15,7 @@
 
 import { FindCaller } from './caller.js';
 import { ToolError } from './tool-error.js';
-import { buildKnowledgeResponse, isActionAllowed, isMethodAllowed, platformEnvSegment } from './helpers.js';
+import { buildKnowledgeResponse, isAccessAllowed, isActionAllowed, platformEnvSegment } from './helpers.js';
 import {
   ActionDetails,
   FindIntent,
@@ -90,8 +90,8 @@ export function actionHeading(title: string, method: string, path: string, actio
   return `${title} · \`${method.toUpperCase()} ${path}\` · actionId: \`${actionId}\``;
 }
 
-function allows(settings: FindSettings, action: { systemId: string; method: string }): boolean {
-  return isActionAllowed(action.systemId, settings.actionIds) && isMethodAllowed(action.method, settings.permissions);
+function allows(settings: FindSettings, action: FoundAction): boolean {
+  return isActionAllowed(action.systemId, settings.actionIds) && isAccessAllowed(action.access, settings.permissions);
 }
 
 function reaches(settings: FindSettings, platform: string | undefined): boolean {
@@ -390,7 +390,7 @@ async function load(loads: FindLoadArgs[], deps: FindDeps, settings: FindSetting
       } catch {
         return refused;
       }
-      if (!isMethodAllowed(details.method, settings.permissions) || !reaches(settings, details.connectionPlatform)) {
+      if (!isAccessAllowed(details.access, settings.permissions) || !reaches(settings, details.connectionPlatform)) {
         return refused;
       }
       const text = renderAction(

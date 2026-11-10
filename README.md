@@ -60,7 +60,7 @@ The server exposes three MCP tools:
 
 | Tool | Description |
 |------|-------------|
-| `list_one_integrations` | List available platforms and active connections, each with the `access` it confers (full, methods, or specific actions) |
+| `list_one_integrations` | List available platforms and active connections, each with the `access` it confers (full, access levels, or specific actions) |
 | `find_one_actions` | Find the action for every operation a task needs, across platforms, with its documentation, in one call; `load` fetches more of a document or an alternative's |
 | `execute_one_action` | Execute an API action on a connected platform |
 
@@ -141,7 +141,7 @@ ONE_KNOWLEDGE_AGENT=true
 
 | Variable | Type | Default | Description |
 |---|---|---|---|
-| `ONE_PERMISSIONS` | `read` \| `write` \| `admin` | `admin` | Filter actions by HTTP method. `read` = GET only, `write` = GET/POST/PUT/PATCH, `admin` = all methods |
+| `ONE_PERMISSIONS` | `read` \| `write` \| `admin` | `admin` | Filter actions by One's `access` classification of what each one does, whatever its HTTP method. `read` = `read` actions only, `write` = `read` and `write` actions, `admin` = all actions including `delete`. Below `admin`, an action with no classification is refused |
 | `ONE_CONNECTION_KEYS` | `*` or comma-separated keys | `*` | Restrict visible connections and platforms to specific connection keys |
 | `ONE_ACTION_IDS` | `*` or comma-separated IDs | `*` | Restrict visible and executable actions to specific action IDs |
 | `ONE_KNOWLEDGE_AGENT` | `true` \| `false` | `false` | Remove the `execute_one_action` tool entirely, forcing knowledge-only mode. `find_one_actions` then returns each chosen action's whole document with how to call it from code, and an Integration Code Guide (passthrough URL, `x-one-*` headers, `ONE_SECRET` / `ONE_{PLATFORM}_CONNECTION_KEY` env vars, backend-only placement) for writing application code |
@@ -153,7 +153,7 @@ Whatever you configure here is surfaced back to the agent: `list_one_integration
 | `access` | When |
 |---|---|
 | `{ "policy": "full" }` | No action allowlist and `ONE_PERMISSIONS=admin` — every action is runnable. |
-| `{ "policy": "methods", "methods": ["GET", ...] }` | No action allowlist, but `ONE_PERMISSIONS` is `read`/`write` — only these HTTP methods are runnable. |
+| `{ "policy": "levels", "levels": ["read", ...] }` | No action allowlist, but `ONE_PERMISSIONS` is `read`/`write` — only actions classified at these access levels are runnable. |
 | `{ "policy": "actions", "actions": [{ "actionId", "title", "method" }] }` | `ONE_ACTION_IDS` is set — exactly these actions (the ones on that connection's platform) are runnable, so no search is needed. |
 
 ## Manual Configuration
