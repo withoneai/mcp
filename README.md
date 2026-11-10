@@ -134,6 +134,7 @@ Fine-tune what the MCP server can see and do:
 
 ```bash
 ONE_PERMISSIONS=read
+ONE_APPROVAL=write
 ONE_CONNECTION_KEYS=conn_key_1,conn_key_2
 ONE_ACTION_IDS=action_id_1,action_id_2
 ONE_KNOWLEDGE_AGENT=true
@@ -142,6 +143,7 @@ ONE_KNOWLEDGE_AGENT=true
 | Variable | Type | Default | Description |
 |---|---|---|---|
 | `ONE_PERMISSIONS` | `read` \| `write` \| `admin` | `admin` | Filter actions by One's `access` classification of what each one does, whatever its HTTP method. `read` = `read` actions only, `write` = `read` and `write` actions, `admin` = all actions including `delete`. Below `admin`, an action with no classification is refused |
+| `ONE_APPROVAL` | `off` \| `delete` \| `write` | `off` | Ask the user before an action runs. `delete` asks for `delete` actions, `write` asks for `write` and `delete` actions, and `read` actions never ask. An action with no classification is asked about at both levels. See [Approval](#approval) |
 | `ONE_CONNECTION_KEYS` | `*` or comma-separated keys | `*` | Restrict visible connections and platforms to specific connection keys |
 | `ONE_ACTION_IDS` | `*` or comma-separated IDs | `*` | Restrict visible and executable actions to specific action IDs |
 | `ONE_KNOWLEDGE_AGENT` | `true` \| `false` | `false` | Remove the `execute_one_action` tool entirely, forcing knowledge-only mode. `find_one_actions` then returns each chosen action's whole document with how to call it from code, and an Integration Code Guide (passthrough URL, `x-one-*` headers, `ONE_SECRET` / `ONE_{PLATFORM}_CONNECTION_KEY` env vars, backend-only placement) for writing application code |
@@ -155,6 +157,14 @@ Whatever you configure here is surfaced back to the agent: `list_one_integration
 | `{ "policy": "full" }` | No action allowlist and `ONE_PERMISSIONS=admin` — every action is runnable. |
 | `{ "policy": "levels", "levels": ["read", ...] }` | No action allowlist, but `ONE_PERMISSIONS` is `read`/`write` — only actions classified at these access levels are runnable. |
 | `{ "policy": "actions", "actions": [{ "actionId", "title", "method" }] }` | `ONE_ACTION_IDS` is set — exactly these actions (the ones on that connection's platform) are runnable, so no search is needed. |
+
+### Approval
+
+An agent that has just read an email, a web page or another third-party document can be steered by what it read. With `ONE_APPROVAL` set, the person at the MCP client decides whether a change goes ahead, not the agent.
+
+Before `execute_one_action` runs an action that needs approval, the server shows a prompt through [MCP elicitation](https://modelcontextprotocol.io/specification/latest/client/elicitation). It names the action, the platform, the connection and what will be sent, and the user ticks a box to run it. Declining, dismissing, leaving the box unticked or not answering within 10 minutes stops the action, and nothing is sent.
+
+Your MCP client has to support elicitation. If it doesn't, every action that needs approval is refused, so check your client before turning this on.
 
 ## Manual Configuration
 

@@ -52,6 +52,12 @@
           "default": "admin"
         },
         {
+          "name": "ONE_APPROVAL",
+          "description": "Ask the user to approve actions before they run: off, delete (delete actions) or write (write and delete actions). Needs a client that supports MCP elicitation",
+          "isRequired": false,
+          "default": "off"
+        },
+        {
           "name": "ONE_CONNECTION_KEYS",
           "description": "Comma-separated connection keys the agent may see, or * for all",
           "isRequired": false,

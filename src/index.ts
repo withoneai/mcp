@@ -12,9 +12,14 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
+  ElicitResultSchema,
   ErrorCode,
   McpError,
+  ServerNotification,
+  ServerRequest,
 } from '@modelcontextprotocol/sdk/types.js';
+import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
+import { APPROVAL_LEVELS, APPROVAL_TIMEOUT_MS, ApprovalLevel, requireApproval } from './approval.js';
 import { OneClient } from './client.js';
 import {
   accessRefusal,
@@ -59,6 +64,12 @@ const ONE_IDENTITY_TYPE = process.env.ONE_IDENTITY_TYPE as 'user' | 'team' | 'or
 const ONE_PERMISSIONS: PermissionLevel = (process.env.ONE_PERMISSIONS as PermissionLevel) || "admin";
 if (!["read", "write", "admin"].includes(ONE_PERMISSIONS)) {
   console.error(`Invalid ONE_PERMISSIONS value: "${ONE_PERMISSIONS}". Must be one of: read, write, admin`);
+  process.exit(1);
+}
+
+const ONE_APPROVAL = (process.env.ONE_APPROVAL || "off") as ApprovalLevel;
+if (!APPROVAL_LEVELS.includes(ONE_APPROVAL)) {
+  console.error(`Invalid ONE_APPROVAL value: "${ONE_APPROVAL}". Must be one of: ${APPROVAL_LEVELS.join(", ")}`);
   process.exit(1);
 }
 
@@ -146,10 +157,10 @@ if (!ONE_KNOWLEDGE_AGENT) {
   server.registerTool(
     "execute_one_action",
     executeOneActionToolConfig,
-    async (args: z.infer<typeof executeOneActionZodSchema>) => {
+    async (args: z.infer<typeof executeOneActionZodSchema>, extra) => {
       if (NODE_REFUSAL) return toolErrorResult(new ToolError(NODE_REFUSAL));
       await initializeOne();
-      return await handleExecuteOneAction(args as ExecuteOneActionArgs);
+      return await handleExecuteOneAction(args as ExecuteOneActionArgs, extra);
     }
   );
 }
@@ -225,7 +236,10 @@ async function handleFindOneActions(args: FindOneActionsArgs) {
   }
 }
 
-async function handleExecuteOneAction(args: ExecuteOneActionArgs) {
+async function handleExecuteOneAction(
+  args: ExecuteOneActionArgs,
+  extra: RequestHandlerExtra<ServerRequest, ServerNotification>
+) {
   try {
     if (!isActionAllowed(args.actionId, ONE_ACTION_IDS)) {
       throw new ToolError(
@@ -240,6 +254,34 @@ async function handleExecuteOneAction(args: ExecuteOneActionArgs) {
     if (!isAccessAllowed(actionDetails.access, ONE_PERMISSIONS)) {
       throw new ToolError(accessRefusal(args.actionId, actionDetails.access, ONE_PERMISSIONS));
     }
+
+    await requireApproval(
+      {
+        actionId: args.actionId,
+        title: actionDetails.title,
+        method: actionDetails.method,
+        path: actionDetails.path,
+        platform: actionDetails.connectionPlatform ?? args.platform,
+        connectionKey: args.connectionKey,
+        access: actionDetails.access,
+        pathVariables: args.pathVariables,
+        queryParams: args.queryParams,
+        data: args.data,
+      },
+      ONE_APPROVAL,
+      {
+        capabilities: server.server.getClientCapabilities(),
+        // Sent as a plain form request, not through elicitInput, which
+        // refuses clients that declare elicitation without naming a mode.
+        // Tied to the tool call so it travels on the same stream.
+        elicit: (params) =>
+          server.server.request({ method: "elicitation/create", params }, ElicitResultSchema, {
+            timeout: APPROVAL_TIMEOUT_MS,
+            relatedRequestId: extra.requestId,
+            signal: extra.signal,
+          }),
+      }
+    );
 
     const result = await oneClient.executePassthroughRequest(args, actionDetails);
 
