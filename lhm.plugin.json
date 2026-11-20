@@ -1,9 +1,9 @@
 {
   "identifier": "withoneai-mcp",
   "name": "One",
-  "version": "2.0.0",
-  "description": "Search, document and execute authenticated API calls across 1000+ apps via one MCP server",
-  "summary": "Connect your agent to 1000+ apps through one MCP server: four tools, real API documentation, OAuth sign-in.",
+  "version": "2.5.1",
+  "description": "Find, document and execute authenticated API calls across 1000+ apps via one MCP server",
+  "summary": "Connect your agent to 1000+ apps through one MCP server: three tools, real API documentation, OAuth sign-in.",
   "author": "withoneai",
   "authorUrl": "https://github.com/withoneai",
   "homepage": "https://www.withone.ai/docs/mcp",
@@ -26,7 +26,7 @@
     {
       "name": "list_one_integrations",
       "title": "List One Integrations",
-      "description": "List all available One integrations and platforms. ALWAYS call this tool first in any workflow to discover what platforms and connections are available. This returns the connections that the user has and all available One platforms in kebab-case format (e.g., 'ship-station', 'shopify') which you'll need for subsequent tool calls. Each connection carries an `access` field describing what you may run on it: `full`, a set of allowed HTTP `methods`, or a specific list of `actions` (each with `actionId`, `title`, `method`). When a connection is action-scoped, its `actions` are exactly what may run, so you need not search.",
+      "description": "List the platforms the user has connected on One. ALWAYS call this tool first in any workflow. Each connection has the kebab-case `platform` name (e.g., 'ship-station', 'shopify') and the `key` (the connectionKey for execute_one_action) you'll need for subsequent tool calls. Each connection carries an `access` field describing what you may run on it: `full`, a set of allowed access `levels` (`read`, `write`, `delete`), or a specific list of `actions` (each with `actionId`, `title`, `method`). When a connection is action-scoped, its `actions` are exactly what may run, so you need not search.",
       "inputSchema": {
         "type": "object",
         "properties": {},
