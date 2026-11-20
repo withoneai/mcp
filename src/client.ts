@@ -7,7 +7,7 @@
  * @author One
  */
 
-import axios, { AxiosResponse } from 'axios';
+import { AxiosResponse } from 'axios';
 import FormData from 'form-data';
 import {
   Connection,
@@ -21,7 +21,7 @@ import {
   ResolvedAllowedAction
 } from './types.js';
 import { callerHeaders, FindCaller } from './caller.js';
-import { describeError, fetchPaginatedData, replacePathVariables, summarizeErrorData } from './helpers.js';
+import { describeError, fetchPaginatedData, oneApiAxios, replacePathVariables, summarizeErrorData } from './helpers.js';
 import { ToolError, oneApiError, oneRefusal } from './tool-error.js';
 
 /** Header names that only the server may set on an outgoing request. */
@@ -232,7 +232,7 @@ export class OneClient {
     caller: FindCaller = {}
   ): Promise<FoundActions[]> {
     try {
-      const response: AxiosResponse<FoundActions[]> = await axios.post(
+      const response: AxiosResponse<FoundActions[]> = await oneApiAxios.post(
         `${this.baseUrl}/v1/available-actions/find`,
         { requests, ...(task ? { task } : {}), knowledgeAgent },
         { headers: { ...this.generateHeaders(), ...callerHeaders(caller) } }
@@ -267,7 +267,7 @@ export class OneClient {
         _id: actionId
       };
 
-      const response: AxiosResponse<{ rows: ActionDetails[] }> = await axios.get(url, {
+      const response: AxiosResponse<{ rows: ActionDetails[] }> = await oneApiAxios.get(url, {
         headers,
         params
       });
@@ -469,7 +469,7 @@ export class OneClient {
     try {
       // Every status resolves: a platform's 4xx or 5xx is its answer, which
       // the agent reads; only One refusing the call is a tool error.
-      response = await axios({ ...requestConfig, validateStatus: () => true });
+      response = await oneApiAxios({ ...requestConfig, validateStatus: () => true });
     } catch (error) {
       console.error("Error executing passthrough request:", describeError(error));
       throw oneApiError("Failed to execute One action", error, true);
