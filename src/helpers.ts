@@ -23,6 +23,15 @@ import {
   KnowledgeFollowUp,
 } from './knowledge-sections.js';
 
+/** Authenticated One requests may follow redirects only within the same origin. */
+export const oneApiAxios = axios.create({
+  beforeRedirect(options, _response, request) {
+    if (new URL(options.href).origin !== new URL(request.url).origin) {
+      throw new Error('One API redirect to a different origin was blocked');
+    }
+  },
+});
+
 /** A knowledge tool response: the text an agent reads plus a machine-readable
  * envelope. */
 export interface KnowledgeResponse {
@@ -125,7 +134,7 @@ export async function fetchPaginatedData<T>(
     };
 
     try {
-      const response: AxiosResponse<PaginatedResponse<T>> = await axios.get(baseUrl, {
+      const response: AxiosResponse<PaginatedResponse<T>> = await oneApiAxios.get(baseUrl, {
         headers,
         params
       });
