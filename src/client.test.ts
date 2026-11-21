@@ -28,10 +28,12 @@ describe("executePassthroughRequest keeps One's headers authoritative", () => {
   let base = '';
   let received: { headers: http.IncomingHttpHeaders }[] = [];
   let reply: { status: number; headers?: Record<string, string>; body: string } | null = null;
+  let holdReply = false;
 
   before(async () => {
     server = http.createServer((req, res) => {
       received.push({ headers: req.headers });
+      if (holdReply) return;
       if (reply !== null) {
         res.writeHead(reply.status, { 'Content-Type': 'application/json', ...reply.headers });
         res.end(reply.body);
@@ -51,6 +53,7 @@ describe("executePassthroughRequest keeps One's headers authoritative", () => {
   beforeEach(() => {
     received = [];
     reply = null;
+    holdReply = false;
   });
 
   it('a caller cannot override the x-one-* routing/auth headers', async () => {
@@ -142,6 +145,30 @@ describe("executePassthroughRequest keeps One's headers authoritative", () => {
   it('keeps ordinary paths working under a base URL with a path prefix', async () => {
     const client = new OneClient(SECRET, `${base}/prefix`);
     await client.executePassthroughRequest(exec({}), ACTION);
+    assert.equal(received.length, 1);
+  });
+
+  it('does not dispatch when the MCP request was already cancelled', async () => {
+    const client = new OneClient(SECRET, base);
+    const controller = new AbortController();
+    controller.abort();
+    await assert.rejects(client.executePassthroughRequest(exec({}), ACTION, controller.signal));
+    assert.equal(received.length, 0);
+  });
+
+  it('cancels an in-flight passthrough request', async () => {
+    const client = new OneClient(SECRET, base);
+    const controller = new AbortController();
+    holdReply = true;
+    let started!: () => void;
+    const requestStarted = new Promise<void>((resolve) => { started = resolve; });
+    const onRequest = () => started();
+    server.once('request', onRequest);
+    const pending = client.executePassthroughRequest(exec({}), ACTION, controller.signal);
+    await requestStarted;
+    controller.abort();
+    await assert.rejects(pending, (error: Error) =>
+      error instanceof ToolError && /cancelled/.test(error.message) && /may already have taken effect/.test(error.message));
     assert.equal(received.length, 1);
   });
 
