@@ -22,7 +22,7 @@ import {
 } from './types.js';
 import { callerHeaders, FindCaller } from './caller.js';
 import { describeError, fetchPaginatedData, replacePathVariables, summarizeErrorData } from './helpers.js';
-import { ToolError, oneApiError, oneRefusal } from './tool-error.js';
+import { ToolError, actionCancelledError, oneApiError, oneRefusal } from './tool-error.js';
 
 /** Header names that only the server may set on an outgoing request. */
 const RESERVED_HEADER_PREFIX = 'x-one-';
@@ -341,7 +341,8 @@ export class OneClient {
    * @returns The platform's response, whatever its status, with the sanitized request config
    * @throws {ToolError} If One refuses the call or cannot be reached
    */
-  async executePassthroughRequest(args: ExecuteOneActionArgs, preloadedAction?: ActionDetails): Promise<ExecutePassthroughResponse> {
+  async executePassthroughRequest(args: ExecuteOneActionArgs, preloadedAction?: ActionDetails, signal?: AbortSignal): Promise<ExecutePassthroughResponse> {
+    if (signal?.aborted) throw actionCancelledError(args.actionId);
     const {
       actionId,
       connectionKey,
@@ -467,13 +468,18 @@ export class OneClient {
 
     let response: AxiosResponse;
     try {
+      if (signal?.aborted) throw actionCancelledError(actionId);
       // Every status resolves: a platform's 4xx or 5xx is its answer, which
       // the agent reads; only One refusing the call is a tool error.
-      response = await axios({ ...requestConfig, validateStatus: () => true });
+      response = await axios({ ...requestConfig, signal, validateStatus: () => true });
     } catch (error) {
+      if (error instanceof ToolError) throw error;
+      if (signal?.aborted || axios.isCancel(error)) throw actionCancelledError(actionId, true);
       console.error("Error executing passthrough request:", describeError(error));
       throw oneApiError("Failed to execute One action", error, true);
     }
+
+    if (signal?.aborted) throw actionCancelledError(actionId, true);
 
     if (response.status >= 400 && !answeredByPlatform(response.headers)) {
       console.error("One refused the passthrough request:", { status: response.status, url: url.split('?')[0], data: summarizeErrorData(response.data) });
