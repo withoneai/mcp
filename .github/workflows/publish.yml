@@ -61,8 +61,30 @@ jobs:
       # can fail where a normal install passes.
       - name: Install latest npm
         run: npm install -g npm@latest
+      # A re-run after a later step failed finds the version already on npm,
+      # and npm refuses to publish a version twice.
       - name: Publish
-        run: npm publish --access public
+        run: |
+          version=$(jq -r .version package.json)
+          if npm view "@withone/mcp@$version" version >/dev/null 2>&1; then
+            echo "@withone/mcp@$version is already on npm, skipping npm publish"
+          else
+            npm publish --access public
+          fi
+      # The MCP registry checks that this version exists on npm, and npm can
+      # take a few minutes to list a new version. Wait up to 10 minutes.
+      - name: Wait for the version on npm
+        run: |
+          version=$(jq -r .version package.json)
+          for attempt in $(seq 1 60); do
+            if curl -fsS -o /dev/null "https://registry.npmjs.org/@withone/mcp/$version"; then
+              echo "@withone/mcp@$version is on npm"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::@withone/mcp@$version did not appear on npm within 10 minutes"
+          exit 1
       - name: Install mcp-publisher
         env:
           VERSION: v1.8.1
@@ -82,7 +104,7 @@ jobs:
             exit 1
           fi
           ./mcp-publisher login dns --domain withone.ai --private-key "$MCP_REGISTRY_PRIVATE_KEY"
-          # The registry checks the npm package, which can take a moment to appear.
+          # The version is on npm by now. Retries cover a registry cache that lags.
           for attempt in 1 2 3 4 5; do
             if ./mcp-publisher publish; then
               exit 0
