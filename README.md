@@ -1,63 +1,74 @@
-<img src="https://assets.withone.ai/banners/mcp.png?v=3" alt="One MCP — Connect your agents to every app through a single MCP." style="border-radius: 5px;">
+<p>
+  <a href="https://withone.ai/products/mcp">
+    <img src="https://raw.githubusercontent.com/withoneai/mcp/main/assets/banner.svg" alt="One MCP. Three tools. Every agent. Every app." width="100%">
+  </a>
+</p>
 
 <h3 align="center">One MCP Server</h3>
 
 <p align="center">
+  <a href="https://withone.ai/docs/install"><strong>Setup guides</strong></a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://withone.ai/docs/mcp"><strong>Docs</strong></a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://withone.ai/knowledge"><strong>API directory</strong></a>
+  &nbsp;&middot;&nbsp;
   <a href="https://withone.ai"><strong>Website</strong></a>
-  &nbsp;·&nbsp;
-  <a href="https://withone.ai/docs"><strong>Docs</strong></a>
-  &nbsp;·&nbsp;
+  &nbsp;&middot;&nbsp;
   <a href="https://app.withone.ai"><strong>Dashboard</strong></a>
-  &nbsp;·&nbsp;
+  &nbsp;&middot;&nbsp;
   <a href="https://withone.ai/changelog"><strong>Changelog</strong></a>
-  &nbsp;·&nbsp;
-  <a href="https://x.com/withoneai"><strong>X</strong></a>
-  &nbsp;·&nbsp;
-  <a href="https://linkedin.com/company/withoneai"><strong>LinkedIn</strong></a>
 </p>
 
 <p align="center">
-  <a href="https://npmjs.com/package/@withone/mcp"><img src="https://img.shields.io/npm/v/%40withone%2Fmcp" alt="npm version"></a>
+  <a href="https://npmjs.com/package/@withone/mcp"><img src="https://img.shields.io/npm/v/%40withone%2Fmcp?color=447D5D&labelColor=132A21&style=flat-square" alt="npm version"></a>
+  &nbsp;
+  <a href="https://withone.ai/knowledge"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.withone.ai%2Fopen%2Fcount%2Fplatforms&color=447D5D&labelColor=132A21&style=flat-square" alt="platforms"></a>
+  &nbsp;
+  <a href="https://withone.ai/knowledge"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.withone.ai%2Fopen%2Fcount%2Ftools&label=verified%20tools&color=447D5D&labelColor=132A21&style=flat-square" alt="verified tools"></a>
+  &nbsp;
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-447D5D?labelColor=132A21&style=flat-square" alt="License MIT"></a>
 </p>
 
-Connect your AI agents to 1000+ apps through a single [MCP](https://modelcontextprotocol.io) server. Find the actions a task needs with their documentation, and execute API calls across platforms, without having to manage OAuth tokens or API keys.
+One's [MCP](https://modelcontextprotocol.io) server gives your agent the apps you have connected on One. It has three tools, however many platforms and actions sit behind them, and the agent never sees an OAuth token or an API&nbsp;key.
 
-**Start with the remote server.** Point your client at `https://mcp.withone.ai/mcp`, sign in to One in the browser, and choose what the agent can reach. Nothing to install and no API key. See [Remote MCP Server](#remote-mcp-server) below, or the [setup guide for your client](https://www.withone.ai/docs/install).
+There are two ways to run&nbsp;it.
 
-**Or run this package locally** over stdio with an API key, for clients without remote support, headless machines, or Docker. See [Local Server](#local-server).
+- **The remote server, which we recommend.** One hosts it at `https://mcp.withone.ai/mcp`. Point your client at that URL, sign in to One in the browser and choose what the agent can reach. There is nothing to install and no API&nbsp;key.
+- **This package.** `@withone/mcp` runs the same three tools on your machine over stdio, with an API key. Use it for clients without remote support, headless machines and&nbsp;Docker.
 
-Full docs: [withone.ai/docs/mcp](https://www.withone.ai/docs/mcp).
+## Quick start
 
-## Capabilities
+Add the remote server to your client. On first connect the client opens a browser, where you sign in to One and pick what the agent can&nbsp;reach.
 
-- **1000+ platforms.** Gmail, Slack, Shopify, HubSpot, Stripe, Linear, QuickBooks, and [more](https://app.withone.ai/tools).
-- **Natural language execution.** "read my last gmail email", "send a message to #general on Slack"
-- **Code generation.** "build a form to send emails using Gmail", "create a dashboard that lists my Linear projects"
-- **No tool bloat.** Only 3 tools exposed regardless of how many platforms or actions you connect. One call finds every action a task needs, across platforms, with its documentation, so your agent's context window stays clean.
-- **Fine-grained access control.** Restrict which actions, connections, and permission levels (read, write, admin) your agent has access to.
-- **Secure by default.** All requests proxied through One, secrets automatically redacted, no platform API keys to manage.
+**Claude Code**
 
-## Examples
+```bash
+claude mcp add --transport http one https://mcp.withone.ai/mcp
+```
 
-**Execute actions directly:**
-> "Get my last 5 emails from Gmail"
+Then run `/mcp` inside Claude Code, pick `one` and choose&nbsp;Authenticate.
 
-> "Send a Slack message to #general: 'Meeting in 10 minutes'"
+**Codex**
 
-> "Get all products from my Shopify store"
+Add One to `~/.codex/config.toml`, then sign in with `codex mcp login one`.
 
-**Generate integration code:**
-> "Create a React form component that sends emails using Gmail"
+```toml
+[mcp_servers.one]
+url = "https://mcp.withone.ai/mcp"
+```
 
-> "Build a dashboard that displays Linear users and their assigned projects with filtering"
+**Cursor and VS Code**
 
-> "Create a paginatable table that fetches and displays QuickBooks invoices with search and sort"
+[![Add to Cursor](https://img.shields.io/badge/Cursor-Add_One-000000?style=flat-square)](https://cursor.com/en/install-mcp?name=one&config=eyJ1cmwiOiAiaHR0cHM6Ly9tY3Aud2l0aG9uZS5haS9tY3AifQ==)
+[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_One-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect/mcp/install?name=one&config=%7B%22type%22%3A%20%22http%22%2C%20%22url%22%3A%20%22https%3A%2F%2Fmcp.withone.ai%2Fmcp%22%7D)
+[![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_One-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=one&config=%7B%22type%22%3A%20%22http%22%2C%20%22url%22%3A%20%22https%3A%2F%2Fmcp.withone.ai%2Fmcp%22%7D)
 
-## Remote MCP Server
+In Windsurf, One is in the MCP marketplace, which reads the MCP Registry entry `ai.withone/mcp`.
 
-The recommended way to connect. One hosts a remote MCP server at **`https://mcp.withone.ai/mcp`**. Point any MCP client that supports remote (HTTP) servers at that URL and authenticate with One via OAuth. There's no `npm install` and no `ONE_SECRET` to manage. You approve access in One's consent screen, where you can scope exactly which connections, actions, and permission levels the agent gets. Those choices are surfaced back to the agent through each connection's `access` field, so it knows what it can run without searching.
+**Any other client**
 
-Add it to your client's MCP configuration. The endpoint speaks the Streamable HTTP transport:
+The server speaks the Streamable HTTP transport. A client with a config file takes the entry below, and a client with a settings screen needs only the&nbsp;URL.
 
 ```json
 {
@@ -70,118 +81,113 @@ Add it to your client's MCP configuration. The endpoint speaks the Streamable HT
 }
 ```
 
-Some clients omit `type` and take the URL alone; UI-based clients (custom connectors) just need the URL itself. On first connect, your client opens a browser to authenticate and authorize with One. After that, the same three tools are available.
+Some clients name the keys differently. There is a step-by-step guide for [Claude Code](https://withone.ai/docs/install/claude-code), [Codex](https://withone.ai/docs/install/codex), [Claude Cowork](https://withone.ai/docs/install/claude-cowork), [ChatGPT](https://withone.ai/docs/install/chatgpt), [Cursor](https://withone.ai/docs/install/cursor), [Devin](https://withone.ai/docs/install/devin), [Kiro](https://withone.ai/docs/install/kiro), [OpenClaw](https://withone.ai/docs/install/openclaw) and [Hermes](https://withone.ai/docs/install/hermes), and the [setup guides](https://withone.ai/docs/install) cover Gemini CLI and the&nbsp;rest.
 
-One-click install:
+**Then ask your agent**
 
-[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_One-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect/mcp/install?name=one&config=%7B%22type%22%3A%20%22http%22%2C%20%22url%22%3A%20%22https%3A%2F%2Fmcp.withone.ai%2Fmcp%22%7D)
-[![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_One-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=one&config=%7B%22type%22%3A%20%22http%22%2C%20%22url%22%3A%20%22https%3A%2F%2Fmcp.withone.ai%2Fmcp%22%7D)
-[![Add to Cursor](https://img.shields.io/badge/Cursor-Add_One-000000?style=flat-square)](https://cursor.com/en/install-mcp?name=one&config=eyJ1cmwiOiAiaHR0cHM6Ly9tY3Aud2l0aG9uZS5haS9tY3AifQ==)
-[![Open in Windsurf](https://img.shields.io/badge/Windsurf-Open_One-09B6A2?style=flat-square)](windsurf://windsurf-mcp-registry?serverName=ai.withone/mcp)
+> Get my last 5 emails from&nbsp;Gmail
 
-The Windsurf link opens One's page in the editor's MCP marketplace, which is served from the official MCP registry where One is published as `ai.withone/mcp`. Windsurf handles the OAuth sign-in itself once you install from that page.
+> Post the release notes to #general in&nbsp;Slack
 
-## Tools
+> Build a form that creates a HubSpot&nbsp;contact
 
-The server exposes three MCP tools:
+## Remote or local
 
-| Tool | Description |
-|------|-------------|
-| `list_one_integrations` | List active connections, each with the `access` it confers (full, access levels, or specific actions). In knowledge-only mode the local server also lists the platforms you could connect |
-| `find_one_actions` | Find the action for every operation a task needs, across platforms, with its documentation, in one call; `load` fetches more of a document or an alternative's |
-| `execute_one_action` | Execute an API action on a connected platform |
+Use the remote server wherever your client supports&nbsp;one.
 
-### Finding actions
+| | Remote server | Local `@withone/mcp` |
+|---|---|---|
+| **Setup** | A&nbsp;URL | Node.js 22.23.4+, 24.22.1+ or 26.12.1+, run with&nbsp;`npx` |
+| **Sign-in** | OAuth in the&nbsp;browser | An API key in&nbsp;`ONE_SECRET` |
+| **Scoping** | The consent screen, editable from the&nbsp;dashboard | Environment variables, or limits set on the&nbsp;key |
+| **Approval before writes** | Your client's own confirmation, prompted by the tool&nbsp;annotations | `ONE_APPROVAL`, through MCP&nbsp;elicitation |
+| **Transport** | Streamable&nbsp;HTTP | stdio |
+| **Good for** | Every client that supports remote&nbsp;servers | Clients without remote support, headless machines with no browser, Docker and per-user identity&nbsp;scoping |
 
-`find_one_actions` takes one `requests` entry per operation, each a kebab-case `platform` and a short `intent` naming the operation alone (`"send a message to a channel"`, not the message). A `task` describes the whole job in general terms, and an `ai_model` names the model asking; agents are asked to send both with every find, since the task helps tell similar actions apart. For each intent, One's decision model picks the action to use; the answer documents it, sets apart a substitute when the model was unsure, and lists a few alternatives. A `platform` no active platform has (`clickup` for `click-up`) is not searched: the answer names the platforms it may have meant, closest first, so the agent can ask again with the right one. Large documents come back as a digest; call `find_one_actions` again with `load: [{ action_id, section }]` for a section it left out, `full: true` for the whole document, or `toc: true` for its table of contents. `ONE_ACTION_IDS`, `ONE_PERMISSIONS` and `ONE_CONNECTION_KEYS` apply to every answer: an action they refuse is never offered, and when they refuse the model's pick, the next allowed candidate takes its place.
+The [MCP Registry](https://registry.modelcontextprotocol.io) lists both under `ai.withone/mcp`, the remote URL and the npm&nbsp;package.
 
-### Executing actions
+## The three tools
 
-The local `execute_one_action` takes camelCase arguments: `platform`, `actionId` and `connectionKey` (all required), plus `data`, `pathVariables`, `queryParams`, `headers`, `isFormData` (multipart) and `isFormUrlEncoded`. It returns `responseData`, `status` and a redacted `requestConfig`. A platform error comes back as a normal result carrying its `status`; only a refusal from One is a tool error. The remote server takes the same arguments in snake_case (`action_id`, `connection_key`, ...), with no `platform`, an optional `ai_model`, and no multipart support yet.
+| Tool | What it does | Annotations |
+|------|--------------|-------------|
+| `list_one_integrations` | Lists your connected apps, each with its connection key and the access it&nbsp;allows | Read-only |
+| `find_one_actions` | Finds the action for every operation a task needs, across platforms, in one call, with its&nbsp;documentation | Read-only |
+| `execute_one_action` | Runs an action on a connected&nbsp;app | Destructive, open-world |
 
-Upgrading from 1.x: `search_one_platform_actions` and `get_one_action_knowledge` are removed. `find_one_actions` replaces both.
+The agent calls `list_one_integrations` first, then `find_one_actions` with every operation the task needs, then `execute_one_action` for each one. The remote server sends these instructions when the client connects. The local server does not, and you can add the workflow to your agent's prompt if it does not follow&nbsp;it.
 
-## Local Server
+`execute_one_action` is the only tool that can change anything. Its annotations mark it destructive, which lets your client ask before it&nbsp;runs.
 
-Run the package over stdio with an API key from the [One dashboard](https://app.withone.ai/settings/api-keys):
+### Find actions
 
-```bash
-ONE_SECRET=your-one-secret-key npx -y @withone/mcp
+Send one entry in `requests` for each operation, as a kebab-case `platform` and a short `intent` that names the operation alone, without IDs, names or message&nbsp;text.
+
+```json
+{
+  "requests": [
+    { "platform": "gmail", "intent": "send an email" },
+    { "platform": "hubspot", "intent": "find a contact by email" }
+  ],
+  "task": "email a report to a CRM contact",
+  "ai_model": "claude-sonnet-5"
+}
 ```
 
-If the [One CLI](https://www.npmjs.com/package/@withone/cli) is installed, `one config` keeps the access-control variables of an existing `one` server entry in step with the CLI's own settings. It does not add the entry for you.
+`requests` takes 1 to 10 operations. `task` is the whole job in one general line, which helps choose between similar actions, and `ai_model` names the model that is&nbsp;asking.
 
-### Identity Scoping
+Each answer names the chosen action with its documentation, plus a few alternatives. When One is unsure, it sets a substitute apart. Large documents come back as a digest that lists the sections it left out. Call again with `load: [{ action_id, section }]` in place of `requests` to read a section, the table of contents, the whole document or an alternative. Results only include actions the agent is allowed to&nbsp;run.
 
-Scope connections to a specific identity (e.g., a user, team, or organization):
+A platform name One does not have, such as `clickup` for `click-up`, is not searched. The answer names the platforms it may have meant, and the agent can ask&nbsp;again.
 
-```bash
-ONE_IDENTITY=user_123
-ONE_IDENTITY_TYPE=user
-```
+### Execute an action
 
-| Variable | Description | Values |
-|----------|-------------|--------|
-| `ONE_IDENTITY` | The identifier for the entity (e.g., user ID, team ID) | Any string |
-| `ONE_IDENTITY_TYPE` | The type of identity | `user`, `team`, `organization`, `project` |
+The two servers take the same arguments under different names. The remote server uses snake_case and the local package uses&nbsp;camelCase.
 
-When set, the MCP server will only return connections associated with the specified identity, and `execute_one_action` will only run on those connections. This is useful for multi-tenant applications where you want to scope integrations to specific users or entities.
+| Remote server | Local package | What it is |
+|---------------|---------------|------------|
+| `action_id` | `actionId` | The action to run, from `find_one_actions` or from a connection's `access` list.&nbsp;Required |
+| `connection_key` | `connectionKey` | The connection to run it on, from `list_one_integrations`.&nbsp;Required |
+| | `platform` | The connection's platform. Required on the local package&nbsp;only |
+| `data` | `data` | The request body, JSON by&nbsp;default |
+| `path_variables` | `pathVariables` | Values for the `{var}` placeholders in the action's&nbsp;path |
+| `query_params` | `queryParams` | Query-string&nbsp;parameters |
+| `headers` | `headers` | Extra headers to send to the&nbsp;platform |
+| `is_form_url_encoded` | `isFormUrlEncoded` | Send `data` as&nbsp;`application/x-www-form-urlencoded` |
+| | `isFormData` | Send `data` as multipart. The remote server does not support it&nbsp;yet |
+| `ai_model` | | The model the agent runs as, recorded with the&nbsp;call |
 
-### Access Control
+One resolves the connection and its credentials on its side, makes the call and returns `responseData`, `status` and `requestConfig`, a copy of the request with credentials redacted. A platform error comes back as a normal result that carries its `status`. Only a refusal from One is a tool&nbsp;error.
 
-Fine-tune what the MCP server can see and do:
+Upgrading from 1.x? `search_one_platform_actions` and `get_one_action_knowledge` are removed, and `find_one_actions` replaces&nbsp;both.
 
-```bash
-ONE_PERMISSIONS=read
-ONE_APPROVAL=write
-ONE_CONNECTION_KEYS=conn_key_1,conn_key_2
-ONE_ACTION_IDS=action_id_1,action_id_2
-ONE_KNOWLEDGE_AGENT=true
-```
+## Choose what the agent can&nbsp;reach
 
-| Variable | Type | Default | Description |
-|---|---|---|---|
-| `ONE_PERMISSIONS` | `read` \| `write` \| `admin` | `admin` | Filter actions by One's `access` classification of what each one does, whatever its HTTP method. `read` = `read` actions only, `write` = `read` and `write` actions, `admin` = all actions including `delete`. Below `admin`, an action with no classification is refused |
-| `ONE_APPROVAL` | `off` \| `delete` \| `write` | `off` | Ask the user before an action runs. `delete` asks for `delete` actions, `write` asks for `write` and `delete` actions, and `read` actions never ask. An action with no classification is asked about at both levels. See [Approval](#approval) |
-| `ONE_CONNECTION_KEYS` | `*` or comma-separated keys | `*` | Restrict visible connections and platforms to specific connection keys |
-| `ONE_ACTION_IDS` | `*` or comma-separated IDs | `*` | Restrict visible and executable actions to specific action IDs |
-| `ONE_BASE_URL` | URL | `https://api.withone.ai` | The One API the server calls |
-| `ONE_KNOWLEDGE_AGENT` | `true` \| `false` | `false` | Remove the `execute_one_action` tool entirely, forcing knowledge-only mode. `find_one_actions` then returns each chosen action's whole document with how to call it from code, and an Integration Code Guide (passthrough URL, `x-one-*` headers, `ONE_SECRET` / `ONE_{PLATFORM}_CONNECTION_KEY` env vars, backend-only placement) for writing application code |
+On the remote server, the consent screen decides what the agent gets. Pick the account and environment, then give access to all connections or tick specific ones and set a level for&nbsp;each.
 
-All defaults preserve current behavior. If no access control env vars are set, the server starts with full access and all tools available.
+| Level | What the agent can run |
+|-------|------------------------|
+| **Full access** | Every action on the connection, including&nbsp;deletes |
+| **Read & write** | Actions that read or change data, but no&nbsp;deletes |
+| **Read only** | Actions that only read&nbsp;data |
+| **Custom** | Only the actions you&nbsp;tick |
 
-Whatever you configure here is surfaced back to the agent: `list_one_integrations` stamps each connection with an `access` field so the agent knows up front what it can run there, without spending a turn searching. It is one of:
+A level is judged by what each action does, not by its HTTP method. One classifies every action as read, write or delete, which means a search sent as a POST runs under Read&nbsp;only.
 
-| `access` | When |
-|---|---|
-| `{ "policy": "full" }` | No action allowlist and `ONE_PERMISSIONS=admin` — every action is runnable. |
-| `{ "policy": "levels", "levels": ["read", ...] }` | No action allowlist, but `ONE_PERMISSIONS` is `read`/`write` — only actions classified at these access levels are runnable. |
-| `{ "policy": "actions", "actions": [{ "actionId", "title", "method" }] }` | `ONE_ACTION_IDS` is set — exactly these actions (the ones on that connection's platform) are runnable, so no search is needed. |
+One enforces the grant on every call. An action outside it is never offered to the agent, and a call that names one anyway is refused. Each connection in `list_one_integrations` carries an `access` field, which tells the agent what it can run before it looks for&nbsp;actions.
 
-### Approval
+**Knowledge only mode** lets the agent read API documentation and nothing else. It is built for code generation. The agent gets `find_one_actions` alone, and each document comes back whole with how to call the action from your own code. Turn it on from the consent&nbsp;screen.
 
-An agent that has just read an email, a web page or another third-party document can be steered by what it read. With `ONE_APPROVAL` set, the person at the MCP client decides whether a change goes ahead, not the agent.
+**To change or revoke access**, open Agents and access in the [One dashboard](https://app.withone.ai). Change a connection's level or remove it, and the change applies on the agent's next call, with no reconnect. An edit can narrow or restore what you first granted. To grant more, reconnect and approve&nbsp;again.
 
-Before `execute_one_action` runs an action that needs approval, the server shows a prompt through [MCP elicitation](https://modelcontextprotocol.io/specification/latest/client/elicitation). It names the action, the platform, the connection and what will be sent, and the user ticks a box to run it. Declining, dismissing, leaving the box unticked or not answering within 10 minutes stops the action, and nothing is sent.
+<p>
+  <img src="https://raw.githubusercontent.com/withoneai/mcp/main/assets/access-levels.jpg" alt="Manage access in the One dashboard, with the level menu open for Gmail. Full access, Read and write, Read only, Custom actions and No access." width="100%">
+</p>
 
-Your MCP client has to support elicitation. If it doesn't, every action that needs approval is refused, so check your client before turning this on.
+The docs cover the [consent screen](https://withone.ai/docs/mcp#authorize-and-scope-access), the [errors and refusals](https://withone.ai/docs/mcp#errors-and-refusals) and the [OAuth details](https://withone.ai/docs/mcp#connection-details) for anyone building a&nbsp;client.
 
-## Configuration
+## Run the package locally
 
-### Standalone
-
-```bash
-npx @withone/mcp
-```
-
-Requires Node.js 22.23.4+, 24.22.1+ or 26.12.1+. Older Node trusts the compromised eMudhra CA certificates (October 2026), so a network attacker could intercept `ONE_SECRET`. On an older Node the server still starts, but every tool returns an error with the command that updates Node for how it was installed. If you can't update yet, `ONE_ALLOW_UNPATCHED_NODE=1` lets it call One anyway; you remain exposed while it is set.
-
-### Claude Desktop / Cursor
-
-Add the following to your MCP config:
-
-- **Claude Desktop:** MacOS: `~/Library/Application\ Support/Claude/claude_desktop_config.json` · Windows: `%APPDATA%/Claude/claude_desktop_config.json`
-- **Cursor:** Open the Cursor menu and select "MCP Settings"
+The package needs Node.js 22.23.4+, 24.22.1+ or 26.12.1+ and an API key from the [One dashboard](https://app.withone.ai/settings/api-keys). Add it to your client's MCP&nbsp;config.
 
 ```json
 {
@@ -190,30 +196,103 @@ Add the following to your MCP config:
       "command": "npx",
       "args": ["-y", "@withone/mcp"],
       "env": {
-        "ONE_SECRET": "your-one-secret-key"
+        "ONE_SECRET": "your-one-api-key"
       }
     }
   }
 }
 ```
 
+Or run it by&nbsp;hand.
+
+```bash
+ONE_SECRET=your-one-api-key npx -y @withone/mcp
+```
+
+Older Node releases trust the compromised eMudhra CA certificates (October 2026), and a network attacker could read `ONE_SECRET`. On one of them the server still starts, but every tool returns an error with the command that updates&nbsp;Node.
+
+### Configuration
+
+Scope the local server with environment variables in place of a consent&nbsp;screen.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ONE_SECRET` | | Your API key.&nbsp;Required |
+| `ONE_PERMISSIONS` | `admin` | `read` allows read actions only, `write` allows read and write actions, and `admin` allows everything, including deletes. Judged by what each action does, not its HTTP method. Below `admin`, an action with no classification is&nbsp;refused |
+| `ONE_APPROVAL` | `off` | Ask you before an action runs. `write` asks before writes and deletes, and `delete` asks before deletes only. See&nbsp;[Approval](#approval) |
+| `ONE_CONNECTION_KEYS` | `*` | Comma-separated connection keys the agent may use. `find_one_actions` only searches their&nbsp;platforms |
+| `ONE_ACTION_IDS` | `*` | Comma-separated action IDs the agent may find and&nbsp;run |
+| `ONE_KNOWLEDGE_AGENT` | `false` | `true` removes `execute_one_action`. `find_one_actions` then returns each document whole, with how to call the action from&nbsp;code |
+| `ONE_IDENTITY`, `ONE_IDENTITY_TYPE` | | Only list and run connections that belong to one identity. The type is `user`, `team`, `organization` or&nbsp;`project` |
+| `ONE_BASE_URL` | `https://api.withone.ai` | The One API the server&nbsp;calls |
+| `ONE_ALLOW_UNPATCHED_NODE` | | `1` lets the server call One from an older Node.js. You stay exposed while it is&nbsp;set |
+
+An invalid `ONE_PERMISSIONS` or `ONE_APPROVAL` stops the server at startup. With no variables set beyond the key, the server has full access and all three&nbsp;tools.
+
+Whatever you set is reported back to the agent. `list_one_integrations` stamps each connection with an `access`&nbsp;field.
+
+| `access` | When |
+|----------|------|
+| `{ "policy": "full" }` | No action allowlist and `ONE_PERMISSIONS=admin`. Every action is&nbsp;runnable |
+| `{ "policy": "levels", "levels": ["read"] }` | `ONE_PERMISSIONS` is `read` or `write`. Only actions at these levels are&nbsp;runnable |
+| `{ "policy": "actions", "actions": [...] }` | `ONE_ACTION_IDS` is set. Exactly these actions are runnable, and no search is&nbsp;needed |
+
+### Approval
+
+An agent that has just read an email, a web page or another third-party document can be steered by what it read. With `ONE_APPROVAL` set, the person at the MCP client decides whether a change goes ahead, not the&nbsp;agent.
+
+Before `execute_one_action` runs an action that needs approval, the server shows a prompt through [MCP elicitation](https://modelcontextprotocol.io/specification/latest/client/elicitation). It names the action, the platform, the connection and what will be sent, and you tick a box to run it. Declining, dismissing or not answering within 10 minutes stops the action, and nothing is&nbsp;sent.
+
+Your MCP client has to support elicitation. If it does not, every action that needs approval is refused. Check your client before you turn this&nbsp;on.
+
 ### Docker
 
 ```bash
-docker build -t one-mcp-server .
-docker run -i --rm -e ONE_SECRET=your_one_secret_key one-mcp-server
+docker build -t one-mcp .
+docker run -i --rm -e ONE_SECRET=your-one-api-key one-mcp
 ```
 
-`-i` keeps stdin open, which a stdio server needs. All environment variables listed above can be passed as `-e` flags.
+`-i` keeps stdin open, which a stdio server needs. Pass any variable above with another&nbsp;`-e`.
+
+### Limits on the key
+
+The variables are enforced by the local server. To enforce limits on One's side for anything that uses the key, set them on the key itself in the dashboard. If the [One CLI](https://github.com/withoneai/cli) is installed, `one config` keeps the variables of an existing `one` server entry in step with the CLI's own&nbsp;settings.
+
+## Build it into your product
+
+Does your product run its own AI agent for its users? It can skip the browser sign-in. [Connect](https://github.com/withoneai/connect) is One's embeddable authentication, which you add to your product for your users to connect their own apps. Your server then gets a 15-minute token for a connected user, and your agent uses the remote server with that token, within what the user&nbsp;granted.
+
+```ts
+const { accessToken, url } = await oneConnect.getMcpToken(userId);
+// url is https://mcp.withone.ai/mcp
+```
+
+See [Give your agent the MCP server](https://withone.ai/docs/connect/mcp).
 
 ## Security
 
-All requests to third-party platforms are authenticated and proxied through One's API. The MCP server never handles OAuth tokens or platform API keys directly. The `ONE_SECRET` key is the sole credential required, and it is automatically redacted from all response payloads returned to clients. Sensitive headers are stripped from logged and returned request configurations.
+Your agent never handles a platform credential. One stores the OAuth tokens and API keys for your connections and adds them on its side on each call. The remote server authenticates your agent with a short-lived OAuth token tied to the grant you approved, and the local package's only credential is `ONE_SECRET`. Credentials are redacted from every response, and sensitive headers are stripped from the request&nbsp;echo.
 
-## License
+Every call is recorded against the agent or the key that made it. Open either one in Agents and access to see each action it ran, whether that action reads or writes, and how many calls One&nbsp;blocked.
 
-MIT
+<p>
+  <img src="https://raw.githubusercontent.com/withoneai/mcp/main/assets/agent-actions.jpg" alt="The Actions tab for Claude Code in the One dashboard. Each action with its app, method, access, calls, errors and blocked calls." width="100%">
+</p>
 
-## Support
+To report a vulnerability, see [SECURITY.md](./SECURITY.md).
 
-For support, please contact support@withone.ai or visit https://withone.ai
+## Development
+
+```bash
+git clone https://github.com/withoneai/mcp.git
+cd mcp
+npm install        # also builds
+npm test
+ONE_SECRET=your-one-api-key npm run inspector
+```
+
+`npm run inspector` opens the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) against your local&nbsp;build.
+
+## Support and license
+
+Email support@withone.ai or [open an issue](../../issues). The package is released under the [MIT license](./LICENSE).
