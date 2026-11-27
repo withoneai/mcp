@@ -1,7 +1,24 @@
 {
   "name": "@withone/mcp",
-  "version": "2.5.2",
-  "description": "A Model Context Protocol Server for One",
+  "version": "2.5.3",
+  "description": "The local MCP server for One. Three tools that give your agent every app you have connected, over stdio with an API key.",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "ai-agents",
+    "agents",
+    "integrations",
+    "oauth",
+    "api",
+    "automation",
+    "claude",
+    "claude-code",
+    "cursor",
+    "codex",
+    "chatgpt",
+    "one"
+  ],
   "type": "module",
   "bin": {
     "mcp": "build/index.js"
