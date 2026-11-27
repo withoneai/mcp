@@ -1,6 +1,6 @@
 {
   "name": "one",
-  "version": "2.5.2",
+  "version": "2.5.3",
   "description": "Connect Gemini CLI to 1000+ apps (Gmail, Slack, Stripe, Shopify, HubSpot, Notion, Linear, Salesforce, QuickBooks and more) through One's hosted MCP server. Three tools: list your connections, find the actions a task needs with their real API documentation, and execute them. OAuth sign-in, nothing to install.",
   "mcpServers": {
     "one": {
