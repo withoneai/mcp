@@ -14,6 +14,16 @@ import axios from 'axios';
 /** A failure the agent can read and correct, returned as an `isError` result rather than a protocol error. */
 export class ToolError extends Error {}
 
+export class ActionCancelledError extends ToolError {}
+
+/** Cancellation does not undo a request that may already have reached One. */
+export function actionCancelledError(actionId: string, mayHaveRun = false): ActionCancelledError {
+  const outcome = mayHaveRun
+    ? 'It may already have taken effect; check before trying again.'
+    : 'It was not sent.';
+  return new ActionCancelledError(`Action "${actionId}" was cancelled. ${outcome}`);
+}
+
 /** The `isError` result a ToolError is reported as. */
 export function toolErrorResult(error: ToolError) {
   return {

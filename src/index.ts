@@ -28,7 +28,7 @@ import {
   buildIntegrationsResponse,
 } from './helpers.js';
 import { findOneActions } from './find.js';
-import { ToolError, toolErrorResult } from './tool-error.js';
+import { ActionCancelledError, ToolError, actionCancelledError, toolErrorResult } from './tool-error.js';
 import { unpatchedNodeRefusal } from './node-check.js';
 import {
   listOneIntegrationsToolConfig,
@@ -159,6 +159,7 @@ if (!ONE_KNOWLEDGE_AGENT) {
     executeOneActionToolConfig,
     async (args: z.infer<typeof executeOneActionZodSchema>, extra) => {
       if (NODE_REFUSAL) return toolErrorResult(new ToolError(NODE_REFUSAL));
+      if (extra.signal.aborted) return toolErrorResult(actionCancelledError(args.actionId));
       await initializeOne();
       return await handleExecuteOneAction(args as ExecuteOneActionArgs, extra);
     }
@@ -240,7 +241,9 @@ async function handleExecuteOneAction(
   args: ExecuteOneActionArgs,
   extra: RequestHandlerExtra<ServerRequest, ServerNotification>
 ) {
+  let dispatchStarted = false;
   try {
+    if (extra.signal.aborted) throw actionCancelledError(args.actionId);
     if (!isActionAllowed(args.actionId, ONE_ACTION_IDS)) {
       throw new ToolError(
         `Action "${args.actionId}" is not one this server may run. Use an action listed in list_one_integrations or returned by find_one_actions.`
@@ -248,8 +251,10 @@ async function handleExecuteOneAction(
     }
 
     await oneClient.ensureConnectionInScope(args.connectionKey);
+    if (extra.signal.aborted) throw actionCancelledError(args.actionId);
 
     const actionDetails = await oneClient.getActionDetails(args.actionId);
+    if (extra.signal.aborted) throw actionCancelledError(args.actionId);
 
     if (!isAccessAllowed(actionDetails.access, ONE_PERMISSIONS)) {
       throw new ToolError(accessRefusal(args.actionId, actionDetails.access, ONE_PERMISSIONS));
@@ -283,7 +288,10 @@ async function handleExecuteOneAction(
       }
     );
 
-    const result = await oneClient.executePassthroughRequest(args, actionDetails);
+    if (extra.signal.aborted) throw actionCancelledError(args.actionId);
+
+    dispatchStarted = true;
+    const result = await oneClient.executePassthroughRequest(args, actionDetails, extra.signal);
 
     return {
       content: [
@@ -295,6 +303,8 @@ async function handleExecuteOneAction(
       structuredContent: result,
     };
   } catch (error) {
+    if (error instanceof ActionCancelledError) return toolErrorResult(error);
+    if (extra.signal.aborted) return toolErrorResult(actionCancelledError(args.actionId, dispatchStarted));
     if (error instanceof ToolError) {
       return toolErrorResult(error);
     }
